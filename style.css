@@ -32,6 +32,9 @@
 
 * { box-sizing: border-box; }
 
+/* أي عنصر فيه hidden يختفي فعلاً (مهم خارج claude.ai لأن قواعد display تغطي على hidden) */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {

@@ -229,10 +229,27 @@
     }
     return a;
   }
+  /* توزيع الحروف على اللوحة حسب عدد أسئلة كل حرف:
+     كل ما قلّت أسئلة الحرف (ظ مثلاً) قلّ ظهوره، عشان ما تخلص أسئلته بسرعة.
+     يحسب من كل الأسئلة المتاحة (البنك + الصعبة + أسئلتك أنت).
+     الاختيار عشوائي موزون: لكل حرف "تذكرة" ورقمها عشوائي مرفوع لقوة (1/وزن)، ونأخذ أعلى التذاكر. */
+  const RARE_POWER = 1.5;
+  function letterWeights() {
+    const counts = LETTERS.map((L) => poolFor(L, "mixed").length);
+    const max = Math.max(...counts, 1);
+    return counts.map((c) => Math.max(0.03, Math.pow(c / max, RARE_POWER)));
+  }
   function dealLetters(n) {
-    const base = shuffle(LETTERS);
-    if (n <= base.length) return base.slice(0, n);
-    return shuffle(base.concat(shuffle(LETTERS).slice(0, n - base.length)));
+    const w = letterWeights();
+    const tickets = [];
+    const draw = (weight) => Math.pow(Math.random() || 1e-9, 1 / weight);
+    LETTERS.forEach((L, i) => {
+      tickets.push([L, draw(w[i])]);
+      // لوحة 6×6 فيها خلايا أكثر من الحروف: نعطي كل حرف تذكرة ثانية أضعف
+      if (n > LETTERS.length) tickets.push([L, draw(w[i] * 0.7)]);
+    });
+    tickets.sort((a, b) => b[1] - a[1]);
+    return shuffle(tickets.slice(0, n).map((t) => t[0]));
   }
   function el(name, attrs = {}) {
     const e = document.createElementNS(SVG_NS, name);
@@ -1173,9 +1190,9 @@
       $$("button", seg).forEach((b) => b.classList.toggle("on", String(draft[key]) === b.dataset.v));
     });
     const N = draft.size * draft.size;
-    $("#sizeNote").textContent = N > LETTERS.length
+    $("#sizeNote").textContent = (N > LETTERS.length
       ? `${N} خلية — بعض الحروف تتكرر`
-      : `${N} خلية — كل حرف مرة وحدة`;
+      : `${N} خلية — كل حرف مرة وحدة`) + ". الحروف قليلة الأسئلة (مثل ظ) تظهر أقل.";
     const bankCount = Object.values(BANK).reduce((s, a) => s + a.length, 0) + Object.values(HARD).reduce((s, a) => s + a.length, 0);
     $("#bankNote").textContent = `${bankCount} سؤال جاهز` + (custom.length ? ` + ${custom.length} من عندك` : "");
     $("#playNote").textContent = draft.play === "turn"
