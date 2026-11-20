@@ -256,6 +256,16 @@
         <input id="cA" placeholder="الإجابة" maxlength="40" autocomplete="off" aria-label="الإجابة">
         <button class="primary" type="submit">أضف</button>
       </form>
+      <details class="bulk" id="bulkBox">
+        <summary>إضافة أسئلة كثيرة مرة وحدة</summary>
+        <p class="muted">كل سطر سؤال: <b>السؤال | الإجابة</b>. الحرف يُؤخذ من أول الإجابة تلقائياً، أو اكتبه أول السطر: <b>ح | السؤال | الإجابة</b></p>
+        <textarea id="bulkText" rows="6" placeholder="عاصمة اليابان | طوكيو&#10;أكبر حيوان بري | الفيل&#10;م | ثمرة صفراء طويلة | الموز"></textarea>
+        <div class="bulk-actions">
+          <button class="primary" type="button" id="bulkAdd">أضف الكل</button>
+          <button class="secondary" type="button" id="bulkCopy">انسخ أسئلتي</button>
+          <span class="note" id="bulkNote"></span>
+        </div>
+      </details>
       <ul class="custom-list" id="customList"></ul>
       <button class="secondary" id="customClose">تم</button>
     </div>

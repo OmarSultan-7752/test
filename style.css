@@ -625,6 +625,24 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .custom-list .del { flex: none; border: 0; background: none; color: #f0787b; font-size: 20px; padding: 4px 8px; }
 .custom-list .empty { justify-content: center; color: var(--muted); background: none; }
 .custom-sheet > .secondary { width: 100%; }
+.bulk { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(0, 0, 0, .18); border: 1px solid var(--line); }
+.bulk summary { cursor: pointer; font-weight: 800; color: var(--gold-2); }
+.bulk .muted { margin: 10px 0; font-size: 13px; text-align: start; }
+.bulk textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, .25);
+  color: var(--text);
+  font: inherit;
+  line-height: 1.7;
+  resize: vertical;
+}
+.bulk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.bulk-actions .primary, .bulk-actions .secondary { padding: 10px 16px; font-size: 15px; }
+.bulk-actions .note { margin: 0; }
 
 #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
 
@@ -643,7 +661,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   .tool-sep { margin-inline: 1px; }
   .setup-grid, .teams-edit { grid-template-columns: minmax(0, 1fr); }
   .custom-form { grid-template-columns: 64px minmax(0, 1fr); }
-  .custom-form #cA { grid-column: span 1; }
+  .custom-form #cA { grid-column: 1 / -1; }
   .custom-form .primary { grid-column: 1 / -1; }
   .badge { width: 140px; height: 140px; }
   .badge-letter { font-size: 70px; }

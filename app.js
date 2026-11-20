@@ -531,7 +531,9 @@
 
   /* ---- السؤال ---- */
   function questionPool(L) {
-    return (BANK[L] || []).map(([q, a]) => ({ q, a })).concat(custom.filter((c) => c.l === L));
+    const seen = new Set();
+    return (BANK[L] || []).map(([q, a]) => ({ q, a })).concat(custom.filter((c) => c.l === L))
+      .filter((x) => !seen.has(x.q) && seen.add(x.q));
   }
   function pickQuestion(L) {
     const all = questionPool(L);
@@ -828,6 +830,58 @@
       list.append(li);
     });
   }
+  const HAMZA = { "أ": "ا", "إ": "ا", "آ": "ا" };
+  function letterOf(answer) {
+    let a = answer.trim();
+    if (a.startsWith("ال") && a.length > 3) a = a.slice(2);
+    const ch = HAMZA[a[0]] || a[0];
+    return LETTERS.includes(ch) ? ch : null;
+  }
+  function parseBulk(text) {
+    const ok = [], bad = [];
+    text.split(/\r?\n/).forEach((line, n) => {
+      if (!line.trim()) return;
+      const parts = line.split(/\s*[|\t]\s*/).map((x) => x.trim()).filter(Boolean);
+      let L, q, a;
+      if (parts.length === 3 && LETTERS.includes(HAMZA[parts[0]] || parts[0])) {
+        L = HAMZA[parts[0]] || parts[0]; q = parts[1]; a = parts[2];
+      } else if (parts.length === 2) {
+        q = parts[0]; a = parts[1]; L = letterOf(a);
+      }
+      if (L && q && a) ok.push({ l: L, q: q.slice(0, 160), a: a.slice(0, 60) });
+      else bad.push(n + 1);
+    });
+    return { ok, bad };
+  }
+  $("#bulkAdd").onclick = () => {
+    const { ok, bad } = parseBulk($("#bulkText").value);
+    const known = new Set(custom.map((c) => c.l + "|" + c.q));
+    const fresh = ok.filter((c) => !known.has(c.l + "|" + c.q));
+    custom = fresh.concat(custom);
+    store.set("custom", custom);
+    renderCustom();
+    let msg = `أُضيف ${fresh.length} سؤال`;
+    if (ok.length - fresh.length) msg += ` · ${ok.length - fresh.length} مكرر`;
+    if (bad.length) msg += ` · أسطر ما فهمتها: ${bad.slice(0, 8).join("، ")}${bad.length > 8 ? "…" : ""}`;
+    $("#bulkNote").textContent = msg;
+    if (fresh.length) { $("#bulkText").value = ""; Sound.play("correct"); }
+  };
+  $("#bulkCopy").onclick = () => {
+    const text = custom.map((c) => `${c.l} | ${c.q} | ${c.a}`).join("\n");
+    if (!text) { $("#bulkNote").textContent = "ما عندك أسئلة تنسخها."; return; }
+    const fallback = () => {
+      const ta = $("#bulkText");
+      ta.value = text; ta.focus(); ta.select();
+      $("#bulkNote").textContent = "حددتها لك في المربع، انسخها يدوياً.";
+    };
+    try {
+      navigator.clipboard.writeText(text).then(
+        () => { $("#bulkNote").textContent = `نُسخ ${custom.length} سؤال.`; },
+        fallback
+      );
+    } catch (_) { fallback(); }
+  };
+
   function closeCustom() { closeModal("customModal"); if (draft) renderSetup(); }
   $("#btnCustom").onclick = () => { renderCustom(); openModal("customModal"); };
   $("#customClose").onclick = closeCustom;
