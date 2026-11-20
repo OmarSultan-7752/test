@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>مسابقة حروف</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="scorebar">
+    <div class="team team-red">
+      <input id="nameRed" value="الفريق الأحمر" maxlength="20" aria-label="اسم الفريق الأحمر">
+      <span class="goal">يوصل من فوق لتحت</span>
+      <span class="wins" id="winsRed">0</span>
+    </div>
+    <h1>حروف</h1>
+    <div class="team team-blue">
+      <input id="nameBlue" value="الفريق الأزرق" maxlength="20" aria-label="اسم الفريق الأزرق">
+      <span class="goal">يوصل من اليمين لليسار</span>
+      <span class="wins" id="winsBlue">0</span>
+    </div>
+  </header>
+
+  <main>
+    <svg id="board" viewBox="0 0 10 10" role="img" aria-label="لوحة الحروف"></svg>
+  </main>
+
+  <footer class="controls" id="controls">
+    <button id="btnShuffle">حروف جديدة</button>
+    <button id="btnClear">مسح الألوان</button>
+    <button id="btnUndo">تراجع</button>
+    <button id="btnHide">إخفاء الأزرار (H)</button>
+    <button id="btnFull">ملء الشاشة (F)</button>
+    <span class="hint">اضغط على الخلية: أحمر ← أزرق ← فاضي</span>
+  </footer>
+
+  <div id="winner" class="winner" hidden>
+    <div class="winner-box">
+      <div id="winnerText"></div>
+      <button id="btnNext">جولة جديدة</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
