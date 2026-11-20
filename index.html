@@ -1,84 +1,270 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>مسابقة حروف</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- HEAD START -->
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>مسابقة حروف</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&family=Lalezar&family=Noto+Kufi+Arabic:wght@700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<!-- HEAD END -->
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="scorebar">
-    <div class="team team-red" id="teamRed">
-      <input id="nameRed" value="الفريق الأحمر" maxlength="20" aria-label="اسم الفريق الأحمر">
-      <span class="goal">يوصل من فوق لتحت</span>
-      <span class="turn-tag">يختارون الحرف</span>
-      <span class="wins" id="winsRed">0</span>
-    </div>
-    <h1>حروف</h1>
-    <div class="team team-blue" id="teamBlue">
-      <input id="nameBlue" value="الفريق الأزرق" maxlength="20" aria-label="اسم الفريق الأزرق">
-      <span class="goal">يوصل من اليمين لليسار</span>
-      <span class="turn-tag">يختارون الحرف</span>
-      <span class="wins" id="winsBlue">0</span>
-    </div>
-  </header>
+<!-- APP START -->
+<div class="app" id="app" dir="rtl" lang="ar">
 
-  <main>
-    <svg id="board" viewBox="0 0 10 10" role="img" aria-label="لوحة الحروف"></svg>
-  </main>
+  <!-- ===== شاشة اللعب ===== -->
+  <section class="game" id="game">
+    <header class="hud">
+      <button class="team" id="team0" data-t="0" title="اضغط لتعطيهم الدور">
+        <span class="turn-badge">دورهم</span>
+        <svg class="team-hex" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.5 21.5,7 21.5,17 12,22.5 2.5,17 2.5,7"/></svg>
+        <span class="team-info">
+          <span class="team-name" id="tName0"></span>
+          <span class="team-goal">↕ من فوق لتحت</span>
+        </span>
+        <span class="pips" id="pips0"></span>
+      </button>
 
-  <footer class="controls" id="controls">
-    <button id="btnShuffle">حروف جديدة</button>
-    <button id="btnClear">مسح الألوان</button>
-    <button id="btnUndo">تراجع (Z)</button>
-    <label>اللوحة
-      <select id="selSize">
-        <option value="4">4×4</option>
-        <option value="5">5×5</option>
-      </select>
-    </label>
-    <label>المؤقت
-      <select id="selTimer">
-        <option value="0">بدون</option>
-        <option value="10">10 ثواني</option>
-        <option value="15">15 ثانية</option>
-        <option value="20">20 ثانية</option>
-        <option value="30">30 ثانية</option>
-        <option value="45">45 ثانية</option>
-        <option value="60">60 ثانية</option>
-      </select>
-    </label>
-    <label class="check"><input type="checkbox" id="chkQuick"> وضع سريع</label>
-    <label class="check"><input type="checkbox" id="chkSound"> أصوات</label>
-    <button id="btnHide">إخفاء الأزرار (H)</button>
-    <button id="btnFull">ملء الشاشة (F)</button>
-    <span class="hint" id="hint"></span>
-  </footer>
-
-  <!-- نافذة السؤال -->
-  <div id="panel" class="overlay" hidden>
-    <div class="panel-box">
-      <div class="big-letter" id="panelLetter"></div>
-      <div class="timer" id="timerText"></div>
-      <div class="timer-bar"><div id="timerFill"></div></div>
-      <div class="panel-actions">
-        <button class="b-red" id="pRed"></button>
-        <button class="b-none" id="pNone">ما أحد جاوب</button>
-        <button class="b-blue" id="pBlue"></button>
+      <div class="brand">
+        <div class="logo">حروف</div>
+        <div class="round" id="roundLabel"></div>
       </div>
-      <div class="panel-keys">1 = الأحمر · 2 = الأزرق · 0 = ما أحد · Esc = إلغاء</div>
+
+      <button class="team" id="team1" data-t="1" title="اضغط لتعطيهم الدور">
+        <span class="turn-badge">دورهم</span>
+        <svg class="team-hex" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.5 21.5,7 21.5,17 12,22.5 2.5,17 2.5,7"/></svg>
+        <span class="team-info">
+          <span class="team-name" id="tName1"></span>
+          <span class="team-goal">↔ من اليمين لليسار</span>
+        </span>
+        <span class="pips" id="pips1"></span>
+      </button>
+    </header>
+
+    <main class="board-wrap">
+      <svg id="board" role="img" aria-label="لوحة الحروف"></svg>
+      <button class="next-float" id="btnNextFloat" hidden>الجولة التالية ←</button>
+    </main>
+
+    <nav class="toolbar" aria-label="أدوات اللعب">
+      <button class="tool" id="btnUndo" title="تراجع (Z)">
+        <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        <span>تراجع</span>
+      </button>
+      <button class="tool" id="btnClear" title="مسح الألوان">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-1 14H6L5 6"/></svg>
+        <span>مسح</span>
+      </button>
+      <button class="tool" id="btnShuffle" title="حروف جديدة">
+        <svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="m4 4 5 5"/></svg>
+        <span>حروف جديدة</span>
+      </button>
+      <span class="tool-sep" aria-hidden="true"></span>
+      <button class="tool" id="btnSettings" title="الإعدادات">
+        <svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+        <span>الإعدادات</span>
+      </button>
+      <button class="tool" id="btnSound" title="الصوت (M)">
+        <svg viewBox="0 0 24 24" class="ic-on"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+        <svg viewBox="0 0 24 24" class="ic-off"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m23 9-6 6"/><path d="m17 9 6 6"/></svg>
+        <span>الصوت</span>
+      </button>
+      <button class="tool" id="btnFull" title="ملء الشاشة (F)">
+        <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+        <span>ملء الشاشة</span>
+      </button>
+    </nav>
+  </section>
+
+  <!-- ===== نافذة السؤال ===== -->
+  <div class="modal" id="qModal" hidden>
+    <div class="sheet q-sheet" id="qSheet" role="dialog" aria-modal="true" aria-labelledby="qText">
+      <button class="badge" id="qBadge" title="اضغط لإيقاف المؤقت أو تشغيله">
+        <svg viewBox="0 0 100 100" class="badge-ring" aria-hidden="true">
+          <circle class="track" cx="50" cy="50" r="46"/>
+          <circle class="progress" id="timerRing" cx="50" cy="50" r="46"/>
+        </svg>
+        <svg viewBox="0 0 100 100" class="badge-hex" aria-hidden="true"><polygon points="50,13 82,31.5 82,68.5 50,87 18,68.5 18,31.5"/></svg>
+        <span class="badge-letter" id="qLetter"></span>
+      </button>
+      <div class="timer-pill" id="timerPill"><span id="timerText"></span></div>
+
+      <div class="q-label" id="qLetterName"></div>
+      <p class="q-text" id="qText"></p>
+
+      <div class="answer" id="answerBox">
+        <button class="reveal" id="btnReveal">إظهار الإجابة</button>
+        <div class="answer-text" id="qAnswer"></div>
+      </div>
+
+      <div class="q-actions">
+        <button class="team-btn ta" id="btnA"></button>
+        <button class="team-btn tb" id="btnB"></button>
+      </div>
+      <button class="none-btn" id="btnNone">ما أحد عرف</button>
+
+      <div class="q-foot">
+        <button class="link" id="btnAnother">سؤال ثاني ↻</button>
+        <span class="keys">1 · 2 · 0 · مسافة</span>
+        <button class="link" id="btnCancel">إغلاق</button>
+      </div>
     </div>
   </div>
 
-  <div id="winner" class="overlay" hidden>
-    <div class="winner-box">
-      <div id="winnerText"></div>
-      <button id="btnNext">جولة جديدة</button>
+  <!-- ===== تعديل خلية ملونة ===== -->
+  <div class="modal" id="editModal" hidden>
+    <div class="sheet edit-sheet" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+      <h3 id="editTitle"></h3>
+      <p class="muted">لمين تصير هالخلية؟</p>
+      <div class="edit-actions">
+        <button class="team-btn ta" id="editA"></button>
+        <button class="team-btn tb" id="editB"></button>
+        <button class="none-btn" id="editEmpty">فاضية</button>
+      </div>
+      <button class="link" id="editCancel">إلغاء</button>
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- ===== الفوز ===== -->
+  <div class="modal" id="winModal" hidden>
+    <div class="sheet win-sheet" id="winSheet" role="dialog" aria-modal="true" aria-labelledby="winName">
+      <svg class="win-hex" viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 88,28 88,72 50,94 12,72 12,28"/><text x="50" y="54">★</text></svg>
+      <div class="win-kicker" id="winKicker"></div>
+      <div class="win-name" id="winName"></div>
+      <div class="win-score">
+        <span class="ws ta" id="wsA"></span>
+        <span class="ws-dash">—</span>
+        <span class="ws tb" id="wsB"></span>
+      </div>
+      <div class="win-actions">
+        <button class="primary" id="winPrimary"></button>
+        <button class="secondary" id="winSecondary">شوف اللوحة</button>
+        <button class="link" id="winSettings" hidden>الإعدادات</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== الإعدادات ===== -->
+  <div class="setup" id="setup" hidden>
+    <div class="setup-inner">
+      <div class="setup-head">
+        <svg class="setup-hexes" viewBox="0 0 120 60" aria-hidden="true">
+          <polygon class="h1" points="20,8 36,17 36,35 20,44 4,35 4,17"/>
+          <polygon class="h2" points="60,16 76,25 76,43 60,52 44,43 44,25"/>
+          <polygon class="h3" points="100,8 116,17 116,35 100,44 84,35 84,17"/>
+        </svg>
+        <div class="logo big">حروف</div>
+        <p class="tagline">جاوب صح، خذ الخلية، وكمّل طريقك قبل الخصم.</p>
+      </div>
+
+      <div class="setup-grid">
+        <section class="card span2">
+          <h2>الفريقين</h2>
+          <div class="teams-edit">
+            <div class="team-edit" data-t="0">
+              <label for="name0">الفريق الأول <small>↕ يوصل من فوق لتحت</small></label>
+              <input id="name0" maxlength="22" autocomplete="off">
+              <div class="swatches" id="sw0"></div>
+            </div>
+            <div class="team-edit" data-t="1">
+              <label for="name1">الفريق الثاني <small>↔ يوصل من اليمين لليسار</small></label>
+              <input id="name1" maxlength="22" autocomplete="off">
+              <div class="swatches" id="sw1"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>حجم اللوحة</h2>
+          <div class="seg" data-key="size">
+            <button data-v="4">4×4</button>
+            <button data-v="5">5×5</button>
+            <button data-v="6">6×6</button>
+          </div>
+          <p class="note" id="sizeNote"></p>
+        </section>
+
+        <section class="card">
+          <h2>وقت الإجابة</h2>
+          <div class="seg" data-key="timer">
+            <button data-v="0">بدون</button>
+            <button data-v="10">10ث</button>
+            <button data-v="20">20ث</button>
+            <button data-v="30">30ث</button>
+            <button data-v="60">60ث</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>الفوز بالمباراة</h2>
+          <div class="seg" data-key="target">
+            <button data-v="1">جولة وحدة</button>
+            <button data-v="2">أول من يفوز بـ2</button>
+            <button data-v="3">بـ3</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>الأسئلة</h2>
+          <div class="seg" data-key="mode">
+            <button data-v="bank">من بنك الأسئلة</button>
+            <button data-v="host">المقدم يسأل</button>
+          </div>
+          <div class="row">
+            <span class="note" id="bankNote"></span>
+            <button class="chip-btn" id="btnCustom">أسئلتي +</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>شكل الحروف</h2>
+          <div class="seg fonts" data-key="font">
+            <button data-v="ruqaa"><span class="sample f-ruqaa">ع</span>رقعة</button>
+            <button data-v="kufi"><span class="sample f-kufi">ع</span>كوفي</button>
+            <button data-v="bold"><span class="sample f-bold">ع</span>عريض</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>الأصوات</h2>
+          <div class="row">
+            <span class="note">مؤثرات للإجابة والمؤقت والفوز</span>
+            <button class="switch" id="swSound" role="switch" aria-checked="true" aria-label="الأصوات"><span></span></button>
+          </div>
+        </section>
+      </div>
+
+      <div class="setup-actions">
+        <button class="primary big" id="btnStart">ابدأ مباراة جديدة</button>
+        <button class="secondary" id="btnResume">رجوع للعبة</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== أسئلتي ===== -->
+  <div class="modal" id="customModal" hidden>
+    <div class="sheet custom-sheet" role="dialog" aria-modal="true" aria-labelledby="customTitle">
+      <h3 id="customTitle">أسئلتك الخاصة</h3>
+      <p class="muted">تنضاف لبنك الأسئلة وتطلع مع حرفها.</p>
+      <form class="custom-form" id="customForm">
+        <select id="cLetter" aria-label="الحرف"></select>
+        <input id="cQ" placeholder="السؤال" maxlength="120" autocomplete="off" aria-label="السؤال">
+        <input id="cA" placeholder="الإجابة" maxlength="40" autocomplete="off" aria-label="الإجابة">
+        <button class="primary" type="submit">أضف</button>
+      </form>
+      <ul class="custom-list" id="customList"></ul>
+      <button class="secondary" id="customClose">تم</button>
+    </div>
+  </div>
+
+  <canvas id="fx" aria-hidden="true"></canvas>
+</div>
+<!-- APP END -->
+<script src="questions.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
