@@ -9,6 +9,8 @@
   --muted: #9fb2cf;
   --gold: #f6b93b;
   --gold-2: #ffd77e;
+  --pa: #1fb36b; --pa-l: #5fd79a; --pa-d: #12804b;
+  --pb: #f57c2b; --pb-l: #ffa66b; --pb-d: #c25813;
   --cell: #fbf4e4;
   --cell-2: #e6d6b4;
   --ink: #182033;
@@ -689,4 +691,178 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition-duration: .001s !important; }
+}
+
+
+/* ================= الجرس ================= */
+.tool { position: relative; }
+.tool.on svg { color: var(--gold-2); }
+.bell-badge {
+  position: absolute;
+  top: 2px;
+  inset-inline-end: 10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--gold);
+  color: var(--ink);
+  font: 800 11px/18px var(--f-body);
+  font-style: normal;
+  text-align: center;
+}
+
+/* نافذة المقدم */
+.bell-sheet { width: min(540px, 100%); }
+.bell-steps { margin: 0 0 14px; padding: 0 22px 0 0; text-align: start; color: var(--muted); line-height: 1.9; }
+.bell-steps b { color: var(--text); }
+.bell-code {
+  margin: 4px auto 16px;
+  padding: 6px 26px;
+  width: fit-content;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, .3);
+  border: 2px dashed var(--gold);
+  font-family: var(--f-display);
+  font-size: clamp(54px, 14vw, 84px);
+  line-height: 1.25;
+  letter-spacing: 10px;
+  padding-inline-start: calc(26px + 10px);
+  color: var(--gold-2);
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+}
+.bell-teams { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: start; }
+.bell-team { min-width: 0; padding: 10px 12px; border-radius: 14px; background: rgba(0, 0, 0, .2); border-top: 4px solid var(--a); }
+.bell-team[data-t="1"] { border-top-color: var(--b); }
+.bell-team h4 { margin: 0 0 6px; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bell-team ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; min-height: 28px; }
+.bell-team li { padding: 5px 10px; border-radius: 9px; background: rgba(255, 255, 255, .07); font-weight: 700; animation: popIn .3s ease; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bell-team li.empty { background: none; color: var(--muted); padding-inline: 2px; }
+.bell-actions { display: flex; gap: 8px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
+.bell-actions .secondary { padding: 10px 16px; font-size: 15px; }
+.bell-done { margin-top: 12px; width: 100%; }
+#bellOff .primary { margin-top: 6px; }
+
+/* شريط الجرس داخل نافذة السؤال */
+.buzz-box {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 2px solid var(--gold);
+  background: rgba(246, 185, 59, .1);
+}
+.buzz-status { font-weight: 800; font-size: 18px; }
+.buzz-box[data-kind="armed"] { animation: buzzPulse 1.4s ease-in-out infinite; }
+.buzz-box[data-kind="none"] { border-color: var(--line); background: rgba(255, 255, 255, .05); color: var(--muted); }
+.buzz-box[data-kind="locked"][data-team="0"] { border-color: var(--a); background: color-mix(in srgb, var(--a) 22%, transparent); }
+.buzz-box[data-kind="locked"][data-team="1"] { border-color: var(--b); background: color-mix(in srgb, var(--b) 22%, transparent); }
+.buzz-box[data-kind="locked"] { animation: popIn .3s cubic-bezier(.2, 1.5, .4, 1); }
+.buzz-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-top: 10px; }
+.buzz-actions button { padding: 12px; border: 0; border-radius: 14px; color: #fff; font-weight: 800; font-size: 17px; }
+.buzz-ok { background: linear-gradient(180deg, #5fd79a, #1fb36b); box-shadow: 0 5px 0 #12804b; }
+.buzz-bad { background: linear-gradient(180deg, #ff8085, #e5484d); box-shadow: 0 5px 0 #a8292d; }
+.buzz-actions button:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
+@keyframes buzzPulse { 50% { box-shadow: 0 0 0 6px rgba(246, 185, 59, .18); } }
+
+/* شاشة اللاعب */
+.player {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background:
+    radial-gradient(900px 500px at 50% -10%, #1f4380 0%, transparent 60%),
+    var(--bg);
+  padding: max(14px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  animation: fadeIn .25s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.player[hidden] { display: none; }
+.player-top { display: flex; align-items: center; justify-content: space-between; }
+.logo.small { font-size: 34px; }
+.pl-panel {
+  margin: auto;
+  width: min(420px, 100%);
+  padding: 22px 20px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #1b3866, #12284b);
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: start;
+}
+.pl-panel h2 { margin: 0 0 4px; text-align: center; }
+.pl-panel label { color: var(--muted); font-weight: 700; font-size: 14px; }
+.pl-panel input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, .3);
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+  font-size: 22px;
+  text-align: center;
+}
+#plCode { font-size: 34px; letter-spacing: 10px; direction: ltr; font-variant-numeric: tabular-nums; }
+.pl-panel .note { text-align: center; min-height: 1.4em; margin: 2px 0 0; }
+.pl-panel .primary { margin-top: 6px; }
+.team-btn.pa { background: linear-gradient(180deg, var(--pa-l), var(--pa)); box-shadow: 0 6px 0 var(--pa-d); padding: 22px 10px; font-size: 22px; }
+.team-btn.pb { background: linear-gradient(180deg, var(--pb-l), var(--pb)); box-shadow: 0 6px 0 var(--pb-d); padding: 22px 10px; font-size: 22px; }
+#plTeam .team-btn { margin-bottom: 8px; }
+
+.pl-buzz {
+  --bc: var(--pa); --bc-l: var(--pa-l); --bc-d: var(--pa-d);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 10px;
+  min-height: 0;
+}
+.pl-buzz[hidden] { display: none; }
+.pl-buzz[data-team="1"] { --bc: var(--pb); --bc-l: var(--pb-l); --bc-d: var(--pb-d); }
+.pl-chip { padding: 6px 18px; border-radius: 999px; background: var(--bc); color: #fff; font-weight: 800; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-letter { height: 1.15em; font-size: 72px; line-height: 1.15; color: var(--gold-2); font-family: var(--f-display); }
+.buzz-btn {
+  width: min(74vw, 46vh, 360px);
+  height: min(74vw, 46vh, 360px);
+  border-radius: 50%;
+  border: 0;
+  background: radial-gradient(circle at 35% 30%, var(--bc-l), var(--bc) 60%, var(--bc-d));
+  color: #fff;
+  font-family: var(--f-display);
+  font-size: clamp(34px, 10vw, 56px);
+  box-shadow: 0 14px 0 var(--bc-d), 0 24px 50px rgba(0, 0, 0, .45);
+  touch-action: manipulation;
+  transition: transform .08s, box-shadow .08s, filter .25s, opacity .25s;
+  -webkit-touch-callout: none;
+}
+.buzz-btn:active:not(:disabled) { transform: translateY(10px); box-shadow: 0 4px 0 var(--bc-d), 0 10px 24px rgba(0, 0, 0, .4); }
+.pl-buzz[data-mode="armed"] .buzz-btn { animation: ready 1s ease-in-out infinite; }
+@keyframes ready { 50% { transform: scale(1.04); box-shadow: 0 14px 0 var(--bc-d), 0 0 0 16px color-mix(in srgb, var(--bc) 30%, transparent), 0 24px 50px rgba(0, 0, 0, .45); } }
+.pl-buzz[data-mode="idle"] .buzz-btn,
+.pl-buzz[data-mode="banned"] .buzz-btn { filter: grayscale(.85) brightness(.6); }
+.pl-buzz[data-mode="lost"] .buzz-btn { filter: grayscale(.9) brightness(.5); }
+.pl-buzz[data-mode="pending"] .buzz-btn { filter: brightness(.8); }
+.pl-buzz[data-mode="won"] .buzz-btn { background: radial-gradient(circle at 35% 30%, #ffe9a8, var(--gold) 60%, #b27a12); box-shadow: 0 14px 0 #b27a12, 0 0 0 14px rgba(246, 185, 59, .3), 0 24px 50px rgba(0, 0, 0, .45); color: var(--ink); animation: popIn .3s cubic-bezier(.2, 1.5, .4, 1); }
+.pl-status { font-weight: 800; font-size: 20px; text-align: center; min-height: 1.4em; }
+.pl-buzz[data-mode="won"] .pl-status { color: var(--gold-2); }
+
+@media (max-width: 760px) {
+  .bell-steps { font-size: 14px; }
+  .bell-team h4 { font-size: 14px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .pl-buzz { flex-direction: row; flex-wrap: wrap; }
+  .buzz-btn { width: 44vh; height: 44vh; }
+  .pl-letter { font-size: 48px; }
 }

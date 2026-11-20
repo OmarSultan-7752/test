@@ -26,6 +26,8 @@
     size: 5, timer: 20, target: 2, mode: "bank", font: "ruqaa", sound: true,
   };
   const BANK = window.QUESTION_BANK || {};
+  const MORE = window.QUESTION_BANK_MORE || {};
+  for (const L in MORE) BANK[L] = (BANK[L] || []).concat(MORE[L]);
 
   /* ================= التخزين ================= */
   const store = {
@@ -115,6 +117,7 @@
       timeup:  () => { note(196, 0, 0.32, "square", 0.12); note(185, 0.36, 0.5, "square", 0.12); },
       claim:   () => { note(440, 0, 0.09, "sine", 0.2, 880); note(1760, 0.07, 0.2, "sine", 0.07); },
       undo:    () => note(700, 0, 0.12, "sine", 0.14, 420),
+      buzz:    () => { note(880, 0, 0.18, "square", 0.16); note(660, 0.1, 0.35, "square", 0.16); },
       shuffle: () => { for (let i = 0; i < 6; i++) note(500 + i * 120, i * 0.04, 0.06, "triangle", 0.08); },
       win:     () => {
         [523, 659, 784, 1047, 784, 1047].forEach((f, i) => note(f, i * 0.12, 0.28, "triangle", 0.24));
@@ -565,6 +568,45 @@
     }
   }
 
+  /* ---- الجرس (جهة المقدم) ---- */
+  const Bell = window.HaroofBell || null;
+  let buzzTeam = -1;
+  function buzzUI(kind, info) {
+    const box = $("#buzzBox");
+    if (!Bell || kind === "off" || !Bell.isOn()) { box.hidden = true; return; }
+    box.hidden = false;
+    box.dataset.kind = kind;
+    const st = $("#buzzStatus");
+    if (kind === "locked") {
+      buzzTeam = info.team;
+      box.dataset.team = String(info.team);
+      st.textContent = `🔔 ${info.name} (${settings.teams[info.team].name}) ضغط أول!`;
+    } else if (kind === "none") {
+      buzzTeam = -1;
+      st.textContent = "الجرس مقفل: الفريقين جرّبوا";
+    } else {
+      buzzTeam = -1;
+      st.textContent = "🔔 الجرس مفتوح… أول من يضغط يجاوب";
+    }
+    $("#buzzActions").hidden = kind !== "locked";
+  }
+  $("#buzzOk").onclick = () => { if (buzzTeam >= 0) resolve(buzzTeam); };
+  $("#buzzBad").onclick = () => {
+    if (!Bell || buzzTeam < 0) return;
+    const r = Bell.rearm(buzzTeam);
+    Sound.play("wrong");
+    Timer.resume();
+    buzzUI(r.armed ? "armed" : "none");
+  };
+  function updateBellBadge() {
+    const b = $("#bellBadge");
+    if (!Bell) { $("#btnBell").hidden = true; return; }
+    const n = Bell.isOn() ? Bell.playerCount() : 0;
+    b.hidden = !Bell.isOn();
+    b.textContent = Bell.isOn() ? String(n) : "";
+    $("#btnBell").classList.toggle("on", Bell.isOn());
+  }
+
   function openQuestion(i) {
     picked = i;
     paint();
@@ -580,12 +622,15 @@
     openModal("qModal");
     Sound.play("open");
     Timer.start(settings.timer);
+    if (Bell) { Bell.questionOpened(L); buzzUI(Bell.isOn() ? "armed" : "off"); }
   }
 
   function resolve(result) {   // 0 أو 1 = الفريق الفايز، -1 ما أحد، null إغلاق
     if ($("#qModal").hidden) return;
     Timer.stop();
     closeModal("qModal");
+    if (Bell) Bell.questionClosed();
+    buzzUI("off");
     const i = picked;
     picked = -1;
     if (result === 0 || result === 1) {
@@ -630,6 +675,8 @@
         if (sec > 0) run();
       },
       stop() { running = false; cancelAnimationFrame(raf); },
+      pause() { if (running) { this.stop(); sheet.classList.add("paused"); } },
+      resume() { if (total && left > 0 && !running) run(); },
       toggle() {
         if (!total) return;
         if (left <= 0) { this.start(total); return; }
@@ -790,6 +837,7 @@
     saveSettings();
     applyTheme();
     $("#setup").hidden = true;
+    if (Bell) Bell.teamsChanged();
   }
   $("#btnStart").onclick = () => {
     Sound.unlock();
@@ -915,6 +963,8 @@
   $("#btnClear").onclick = clearBoard;
   $("#btnShuffle").onclick = reshuffle;
   $("#btnSettings").onclick = () => { if (!anyModalOpen()) openSetup(); };
+  $("#btnBell").onclick = () => { if (Bell && !anyModalOpen()) Bell.openPanel(); };
+  $("#btnPlayerMode").onclick = () => { if (Bell) Bell.openPlayer(); };
   $("#btnSound").onclick = toggleSound;
   $("#btnFull").onclick = toggleFull;
   $("#btnNextFloat").onclick = continueAfterWin;
@@ -942,6 +992,8 @@
     }
     if (!$("#editModal").hidden) { if (e.key === "Escape") finishEdit(undefined); return; }
     if (!$("#customModal").hidden) { if (e.key === "Escape") closeCustom(); return; }
+    if (!$("#bellModal").hidden) { if (e.key === "Escape") $("#bellModal").hidden = true; return; }
+    if (!$("#player").hidden) return;
     if (!$("#winModal").hidden) { if (e.key === "Escape") { closeModal("winModal"); updateHud(); } return; }
     if (!$("#setup").hidden) return;
     const k = e.key.toLowerCase();
@@ -954,11 +1006,29 @@
   document.documentElement.setAttribute("dir", "rtl");
   document.documentElement.setAttribute("lang", "ar");
   applyTheme();
+  if (Bell) {
+    Bell.init({
+      teams: () => settings.teams.map((t) => ({ n: t.name, c: COLORS[t.color].c, l: COLORS[t.color].l, d: COLORS[t.color].d })),
+      onBuzz: (info) => {
+        if ($("#qModal").hidden) return;
+        Timer.pause();
+        Sound.play("buzz");
+        buzzUI("locked", info);
+      },
+      onRoster: updateBellBadge,
+      onStatus: updateBellBadge,
+    });
+  } else {
+    $("#btnBell").hidden = true;
+    $("#btnPlayerMode").hidden = true;
+  }
+  updateBellBadge();
+  const playerOnly = location.hash === "#bell";
   if (game) {
     renderBoard(true);
-    if (game.roundOver) setTimeout(showWin, 700);
+    if (game.roundOver && !playerOnly) setTimeout(showWin, 700);
   } else {
     newMatch();
-    openSetup();
+    if (!playerOnly) openSetup();
   }
 })();

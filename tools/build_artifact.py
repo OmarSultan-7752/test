@@ -11,10 +11,17 @@ LETTERS = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي"
 HAMZA = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا"})
 
 
-def load_bank():
-    src = (root / "questions.js").read_text(encoding="utf-8")
-    body = src[src.index("{", src.index("QUESTION_BANK")): src.rindex("}") + 1]
+def load_one(name, var):
+    src = (root / name).read_text(encoding="utf-8")
+    body = src[src.index("{", src.index(var)): src.rindex("}") + 1]
     return json.loads(body)
+
+
+def load_bank():
+    bank = load_one("questions.js", "QUESTION_BANK")
+    for L, items in load_one("questions_more.js", "QUESTION_BANK_MORE").items():
+        bank.setdefault(L, []).extend(items)
+    return bank
 
 
 def first_letter(answer):
@@ -56,10 +63,11 @@ html = (root / "index.html").read_text(encoding="utf-8")
 head = re.search(r"<!-- HEAD START -->(.*?)<!-- HEAD END -->", html, re.S).group(1).strip()
 app = re.search(r"<!-- APP START -->(.*?)<!-- APP END -->", html, re.S).group(1).strip()
 css = (root / "style.css").read_text(encoding="utf-8")
+bell = (root / "bell.js").read_text(encoding="utf-8")
 js = (root / "app.js").read_text(encoding="utf-8")
 
 qs = "window.QUESTION_BANK = " + json.dumps(bank, ensure_ascii=False, separators=(",", ":")) + ";"
-out = f"{head}\n<style>\n{css}\n</style>\n{app}\n<script>\n{qs}\n</script>\n<script>\n{js}\n</script>\n"
+out = f"{head}\n<style>\n{css}\n</style>\n{app}\n<script>\n{qs}\n</script>\n<script>\n{bell}\n</script>\n<script>\n{js}\n</script>\n"
 dest = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else root / "dist" / "index.html")
 dest.parent.mkdir(parents=True, exist_ok=True)
 dest.write_text(out, encoding="utf-8")
