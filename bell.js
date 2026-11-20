@@ -169,7 +169,7 @@
     const ns = await joinCode(code);
     $("#plGo").disabled = false;
     if (!ns) {
-      msg.textContent = "الجرس ما يشتغل هنا. افتح الصفحة من الرابط الأصلي وأنت مسجّل دخول، وتأكد إن صاحب اللعبة شاركها معك.";
+      msg.textContent = "ما قدرنا نربطك بالجرس. هالميزة تحتاج تدخل بحساب Claude وصاحب اللعبة يدعوك بالإيميل من زر Share. اللي يفتح الرابط العام كزائر ما يقدر.";
       return;
     }
     pl.ns = ns; pl.code = code; pl.name = name; pl.state = null;
@@ -306,7 +306,7 @@
         if (saved.team === 0 || saved.team === 1) pl.team = saved.team;
       }
     } catch (_) {}
-    getRoom().then((r) => { if (!r) $("#plMsg").textContent = "الجرس ما يشتغل هنا. افتح الصفحة من الرابط الأصلي وأنت مسجّل دخول."; });
+    getRoom().then((r) => { if (!r) $("#plMsg").textContent = "ما قدرنا نربطك بالجرس. هالميزة تحتاج تدخل بحساب Claude وصاحب اللعبة يدعوك بالإيميل من زر Share. اللي يفتح الرابط العام كزائر ما يقدر."; });
   }
 
   /* ================= ربط العناصر ================= */
