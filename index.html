@@ -10,15 +10,17 @@
 </head>
 <body>
   <header class="scorebar">
-    <div class="team team-red">
+    <div class="team team-red" id="teamRed">
       <input id="nameRed" value="الفريق الأحمر" maxlength="20" aria-label="اسم الفريق الأحمر">
       <span class="goal">يوصل من فوق لتحت</span>
+      <span class="turn-tag">يختارون الحرف</span>
       <span class="wins" id="winsRed">0</span>
     </div>
     <h1>حروف</h1>
-    <div class="team team-blue">
+    <div class="team team-blue" id="teamBlue">
       <input id="nameBlue" value="الفريق الأزرق" maxlength="20" aria-label="اسم الفريق الأزرق">
       <span class="goal">يوصل من اليمين لليسار</span>
+      <span class="turn-tag">يختارون الحرف</span>
       <span class="wins" id="winsBlue">0</span>
     </div>
   </header>
@@ -30,13 +32,47 @@
   <footer class="controls" id="controls">
     <button id="btnShuffle">حروف جديدة</button>
     <button id="btnClear">مسح الألوان</button>
-    <button id="btnUndo">تراجع</button>
+    <button id="btnUndo">تراجع (Z)</button>
+    <label>اللوحة
+      <select id="selSize">
+        <option value="4">4×4</option>
+        <option value="5">5×5</option>
+      </select>
+    </label>
+    <label>المؤقت
+      <select id="selTimer">
+        <option value="0">بدون</option>
+        <option value="10">10 ثواني</option>
+        <option value="15">15 ثانية</option>
+        <option value="20">20 ثانية</option>
+        <option value="30">30 ثانية</option>
+        <option value="45">45 ثانية</option>
+        <option value="60">60 ثانية</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="chkQuick"> وضع سريع</label>
+    <label class="check"><input type="checkbox" id="chkSound"> أصوات</label>
     <button id="btnHide">إخفاء الأزرار (H)</button>
     <button id="btnFull">ملء الشاشة (F)</button>
-    <span class="hint">اضغط على الخلية: أحمر ← أزرق ← فاضي</span>
+    <span class="hint" id="hint"></span>
   </footer>
 
-  <div id="winner" class="winner" hidden>
+  <!-- نافذة السؤال -->
+  <div id="panel" class="overlay" hidden>
+    <div class="panel-box">
+      <div class="big-letter" id="panelLetter"></div>
+      <div class="timer" id="timerText"></div>
+      <div class="timer-bar"><div id="timerFill"></div></div>
+      <div class="panel-actions">
+        <button class="b-red" id="pRed"></button>
+        <button class="b-none" id="pNone">ما أحد جاوب</button>
+        <button class="b-blue" id="pBlue"></button>
+      </div>
+      <div class="panel-keys">1 = الأحمر · 2 = الأزرق · 0 = ما أحد · Esc = إلغاء</div>
+    </div>
+  </div>
+
+  <div id="winner" class="overlay" hidden>
     <div class="winner-box">
       <div id="winnerText"></div>
       <button id="btnNext">جولة جديدة</button>
