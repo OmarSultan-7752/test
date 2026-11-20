@@ -23,11 +23,12 @@
   };
   const DEFAULTS = {
     teams: [{ name: "الفريق الأخضر", color: "green" }, { name: "الفريق البرتقالي", color: "orange" }],
-    size: 5, timer: 20, target: 2, mode: "bank", font: "ruqaa", sound: true,
+    size: 5, timer: 20, target: 2, mode: "bank", font: "ruqaa", play: "turn", level: "mixed", sab: "on",
   };
   const BANK = window.QUESTION_BANK || {};
   const MORE = window.QUESTION_BANK_MORE || {};
   for (const L in MORE) BANK[L] = (BANK[L] || []).concat(MORE[L]);
+  const HARD = window.QUESTION_BANK_HARD || {};
 
   /* ================= التخزين ================= */
   const store = {
@@ -54,7 +55,10 @@
     if (![1, 2, 3].includes(out.target)) out.target = 2;
     if (!["bank", "host"].includes(out.mode)) out.mode = "bank";
     if (!["ruqaa", "kufi", "bold"].includes(out.font)) out.font = "ruqaa";
-    out.sound = out.sound !== false;
+    if (!["turn", "race"].includes(out.play)) out.play = "turn";
+    if (!["normal", "mixed", "hard"].includes(out.level)) out.level = "mixed";
+    if (!["on", "off"].includes(out.sab)) out.sab = "on";
+    delete out.sound;
     return out;
   }
   function validGame(g) {
@@ -71,7 +75,12 @@
   if (!used || typeof used !== "object") used = {};
   let game = store.get("game", null);
   if (!validGame(game)) game = null;
-  else { game.history = game.history || []; game.winPath = game.winPath || []; }
+  else {
+    game.history = game.history || []; game.winPath = game.winPath || [];
+    game.frozen = game.frozen || {};
+    game.fx = game.fx || { skip: [false, false], timeCut: [false, false], hard: [false, false] };
+    game.pendingSab = game.pendingSab || null;
+  }
 
   const saveSettings = () => store.set("settings", settings);
   const saveGame = () => store.set("game", game);
@@ -117,6 +126,8 @@
       timeup:  () => { note(196, 0, 0.32, "square", 0.12); note(185, 0.36, 0.5, "square", 0.12); },
       claim:   () => { note(440, 0, 0.09, "sine", 0.2, 880); note(1760, 0.07, 0.2, "sine", 0.07); },
       undo:    () => note(700, 0, 0.12, "sine", 0.14, 420),
+      boom:    () => { note(160, 0, 0.45, "sawtooth", 0.3, 40); note(90, 0.02, 0.5, "square", 0.2, 30); },
+      freeze:  () => { for (let i = 0; i < 5; i++) note(1800 - i * 220, i * 0.05, 0.14, "triangle", 0.1); },
       buzz:    () => { note(880, 0, 0.18, "square", 0.16); note(660, 0.1, 0.35, "square", 0.16); },
       shuffle: () => { for (let i = 0; i < 6; i++) note(500 + i * 120, i * 0.04, 0.06, "triangle", 0.08); },
       win:     () => {
@@ -125,9 +136,9 @@
       },
     };
     return {
-      unlock() { if (settings.sound) init(); },
+      unlock() { init(); },
       play(name) {
-        if (!settings.sound || !init()) return;
+        if (!init()) return;
         try { sounds[name] && sounds[name](); } catch (_) {}
       },
     };
@@ -207,7 +218,6 @@
       root.setProperty(`--${k}-l`, c.l);
     });
     document.body.dataset.font = settings.font;
-    $("#btnSound").classList.toggle("off", !settings.sound);
   }
 
   /* ================= أدوات ================= */
@@ -334,11 +344,15 @@
           el("polygon", { class: "hex-depth", points: poly(x, y + 0.1 * K, 0.93) }),
           el("polygon", { class: "hex", points: poly(x, y, 0.93) }),
           el("polygon", { class: "glow", points: poly(x, y, 0.93) }),
-          el("polygon", { class: "ring", points: poly(x, y, 0.93) })
+          el("polygon", { class: "ring", points: poly(x, y, 0.93) }),
+          el("polygon", { class: "ice", points: poly(x, y, 0.93) }),
+          el("polygon", { class: "tgt", points: poly(x, y, 0.93) })
         );
         const txt = el("text", { class: "letter", x: x.toFixed(3), y: y.toFixed(3) });
         txt.textContent = game.letters[i];
-        inner.append(txt);
+        const flake = el("text", { class: "ice-mark", x: (x + 0.52 * K).toFixed(2), y: (y - 0.5 * K).toFixed(2) });
+        flake.textContent = "❄";
+        inner.append(txt, flake);
         g.append(inner);
         g.addEventListener("click", () => onCell(i));
         g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onCell(i); } });
@@ -356,11 +370,50 @@
       g.classList.toggle("t0", o === 0);
       g.classList.toggle("t1", o === 1);
       g.classList.toggle("picked", i === picked);
+      g.classList.toggle("frozen", !!game.frozen[i]);
+      g.classList.toggle("target", isTargetCell(i));
       const wi = game.winPath.indexOf(i);
       g.classList.toggle("win", wi >= 0);
       if (wi >= 0) g.style.setProperty("--wd", (wi * 0.09).toFixed(2) + "s");
     });
+    board.classList.toggle("targeting", !!targetMode);
+    $("#game").classList.toggle("targeting", !!targetMode);
     updateHud();
+    queueSync();
+  }
+
+  /* لوحة مصغّرة تنعرض على جوالات اللاعبين (بدون تفاعل) */
+  function drawMini(svg, v) {
+    const N = v && v.n;
+    if (![4, 5, 6].includes(N) || typeof v.l !== "string" || v.l.length !== N * N || typeof v.o !== "string") return;
+    const fz = Array.isArray(v.fz) ? v.fz : [];
+    svg.innerHTML = "";
+    const w = W * (N + 0.5), h = K * (1.5 * (N - 1) + 2), pad = 0.3 * K;
+    svg.setAttribute("viewBox", `${(-pad).toFixed(1)} ${(-pad).toFixed(1)} ${(w + pad * 2).toFixed(1)} ${(h + pad * 2).toFixed(1)}`);
+    const gEdge = el("g"), gCells = el("g");
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const { x, y } = center(r, c);
+        const i = r * N + c;
+        for (const d of DIRS) {
+          const o = d[1 + (r & 1)];
+          const nr = r + o[0], nc = c + o[1];
+          if (nr >= 0 && nr < N && nc >= 0 && nc < N) continue;
+          const t = nr < 0 || nr >= N ? 0 : 1;
+          const p = corner(x, y, d[0][0], 1.02), qq = corner(x, y, d[0][1], 1.02);
+          gEdge.append(el("line", { x1: p[0].toFixed(2), y1: p[1].toFixed(2), x2: qq[0].toFixed(2), y2: qq[1].toFixed(2), class: "medge t" + t }));
+        }
+        const owner = v.o[i];
+        const g = el("g", { class: "mcell" + (owner === "a" ? " t0" : owner === "b" ? " t1" : "") + (fz.includes(i) ? " frozen" : "") + (i === v.pk ? " picked" : "") });
+        g.append(el("polygon", { class: "mhex", points: poly(x, y, 0.93) }));
+        const tx = el("text", { class: "mletter", x: x.toFixed(2), y: (y + 2).toFixed(2) });
+        tx.textContent = v.l[i];
+        g.append(tx);
+        if (fz.includes(i)) { const f = el("text", { class: "mice", x: (x + 0.5 * K).toFixed(1), y: (y - 0.45 * K).toFixed(1) }); f.textContent = "❄"; g.append(f); }
+        gCells.append(g);
+      }
+    }
+    svg.append(gEdge, gCells);
   }
 
   function updateHud() {
@@ -401,6 +454,9 @@
   }
 
   /* ================= مجرى اللعبة ================= */
+  const newFx = () => ({ skip: [false, false], timeCut: [false, false], hard: [false, false] });
+  const nm = (t) => settings.teams[t].name;
+
   function newMatch() {
     game = {
       size: settings.size,
@@ -408,7 +464,9 @@
       owners: Array(settings.size * settings.size).fill(-1),
       turn: 0, score: [0, 0], round: 1,
       history: [], roundOver: false, winPath: [], winner: -1,
+      frozen: {}, fx: newFx(), pendingSab: null,
     };
+    q = null; picked = -1;
     renderBoard(true);
     saveGame();
   }
@@ -422,6 +480,8 @@
     game.roundOver = false;
     game.winPath = [];
     game.winner = -1;
+    game.frozen = {}; game.fx = newFx(); game.pendingSab = null;
+    q = null; picked = -1;
     closeModal("winModal");
     renderBoard(true);
     Sound.play("shuffle");
@@ -432,51 +492,91 @@
     game.history.push({
       letters: game.letters.slice(), owners: game.owners.slice(), turn: game.turn,
       score: game.score.slice(), roundOver: game.roundOver, winPath: game.winPath.slice(), winner: game.winner,
+      frozen: clone(game.frozen), fx: clone(game.fx),
     });
     if (game.history.length > 120) game.history.shift();
   }
   function undo() {
-    if (anyModalOpen()) return;
+    if (anyModalOpen() || targetMode) return;
     const s = game.history.pop();
-    if (!s) return;
+    if (!s) { toast("ما فيه شي تتراجع عنه"); return; }
     const lettersChanged = s.letters.join("") !== game.letters.join("");
     Object.assign(game, s);
+    game.pendingSab = null;
     if (lettersChanged) renderBoard(false); else paint();
     Sound.play("undo");
-    saveGame();
-  }
-  function clearBoard() {
-    if (anyModalOpen() || game.owners.every((o) => o === -1)) return;
-    snapshot();
-    game.owners = game.owners.map(() => -1);
-    game.roundOver = false; game.winPath = []; game.winner = -1;
-    paint();
-    Sound.play("undo");
-    saveGame();
-  }
-  function reshuffle() {
-    if (anyModalOpen()) return;
-    if (game.roundOver) { continueAfterWin(); return; }
-    snapshot();
-    game.letters = dealLetters(game.size * game.size);
-    game.owners = game.owners.map(() => -1);
-    renderBoard(true);
-    Sound.play("shuffle");
+    toast("↶ تراجعنا عن آخر حركة");
     saveGame();
   }
 
+  /* ---- تأكيد (لأن confirm() ما تشتغل في الصفحات المنشورة) ---- */
+  let confirmFn = null;
+  function askConfirm(title, text, okLabel, fn) {
+    $("#confirmTitle").textContent = title;
+    $("#confirmText").textContent = text;
+    $("#confirmOk").textContent = okLabel;
+    confirmFn = fn;
+    openModal("confirmModal");
+  }
+  $("#confirmOk").onclick = () => { closeModal("confirmModal"); const f = confirmFn; confirmFn = null; if (f) f(); };
+  $("#confirmNo").onclick = () => { closeModal("confirmModal"); confirmFn = null; };
+
+  function clearBoard() {
+    if (anyModalOpen() || targetMode) return;
+    if (game.owners.every((o) => o === -1)) { toast("اللوحة فاضية أصلاً"); return; }
+    askConfirm("نمسح كل الألوان؟", "تفضى اللوحة وتبقى نفس الحروف. تقدر ترجع بزر «تراجع».", "إي، امسح", () => {
+      snapshot();
+      game.owners = game.owners.map(() => -1);
+      game.frozen = {};
+      game.roundOver = false; game.winPath = []; game.winner = -1;
+      paint();
+      Sound.play("undo");
+      saveGame();
+    });
+  }
+  function reshuffle() {
+    if (anyModalOpen() || targetMode) return;
+    if (game.roundOver) { continueAfterWin(); return; }
+    const doIt = () => {
+      snapshot();
+      game.letters = dealLetters(game.size * game.size);
+      game.owners = game.owners.map(() => -1);
+      game.frozen = {};
+      renderBoard(true);
+      Sound.play("shuffle");
+      saveGame();
+    };
+    if (game.owners.every((o) => o === -1)) { doIt(); return; }
+    askConfirm("نبدّل الحروف؟", "تتغير كل الحروف وتنمسح الألوان. تقدر ترجع بزر «تراجع».", "إي، بدّل", doIt);
+  }
+
+  /* ---- التنبيهات السريعة ---- */
+  let toastTimer = 0;
+  function toast(msg, ms = 2600) {
+    const t = $("#toast");
+    t.textContent = msg;
+    t.hidden = false;
+    t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, ms);
+    note(msg);
+  }
+
+  /* ---- تغيير مالك الخلية (ما يغيّر الدور) ---- */
   function setOwner(i, t) {
     snapshot();
     game.owners[i] = t;
-    if (t === 0 || t === 1) game.turn = t;
+    delete game.frozen[i];
     paint();
     if (t === 0 || t === 1) claimFx(i, t);
+    let won = false;
     // اللي لوّن الخلية أول من يُفحص، وبعدها الثاني (لو عُدّلت خلية يدوياً)
     for (const team of t === 1 ? [1, 0] : [0, 1]) {
       const path = findPath(team);
-      if (path) { roundWon(team, path); break; }
+      if (path) { roundWon(team, path); won = true; break; }
     }
     saveGame();
+    return won;
   }
 
   function roundWon(t, path) {
@@ -484,6 +584,7 @@
     game.roundOver = true;
     game.winPath = path;
     game.winner = t;
+    game.pendingSab = null;
     paint();
     saveGame();
     setTimeout(() => {
@@ -501,7 +602,7 @@
     const sheet = $("#winSheet");
     sheet.classList.toggle("tb", t === 1);
     $("#winKicker").textContent = matchWon ? "بطل المباراة" : `فاز بالجولة ${game.round}`;
-    $("#winName").textContent = settings.teams[t].name;
+    $("#winName").textContent = nm(t);
     $("#wsA").textContent = game.score[0];
     $("#wsB").textContent = game.score[1];
     $("#winPrimary").textContent = matchWon ? "مباراة جديدة" : "الجولة التالية";
@@ -519,9 +620,32 @@
   $("#winSecondary").onclick = () => { closeModal("winModal"); updateHud(); };
   $("#winSettings").onclick = () => { closeModal("winModal"); openSetup(); };
 
+  /* ---- الدور ---- */
+  // الفرق اللي خلّص دوره: نذوّب التجميد اللي عليه
+  function thaw(starter) {
+    for (const k of Object.keys(game.frozen)) {
+      const f = game.frozen[k];
+      if (f.by !== starter) { f.left--; if (f.left <= 0) delete game.frozen[k]; }
+    }
+  }
+  function advanceTurn(starter) {
+    const opp = 1 - starter;
+    if (game.fx.skip[opp]) {
+      game.fx.skip[opp] = false;
+      game.turn = starter;
+      toast(`⛔ ضاع دور ${nm(opp)}، يعيد ${nm(starter)}`);
+    } else {
+      game.turn = opp;
+    }
+    paint();
+    saveGame();
+  }
+
   function onCell(i) {
     Sound.unlock();
-    if (anyModalOpen() || !$("#setup").hidden) return;
+    if (!$("#setup").hidden || !$("#player").hidden) return;
+    if (targetMode) { pickTarget(i); return; }
+    if (anyModalOpen()) return;
     if (game.roundOver) { showWin(); return; }
     if (game.owners[i] !== -1) { openEdit(i); return; }
     openQuestion(i);
@@ -532,44 +656,189 @@
   function closeModal(id) { $("#" + id).hidden = true; }
   const anyModalOpen = () => $$(".modal").some((m) => !m.hidden);
 
-  /* ---- السؤال ---- */
-  function questionPool(L) {
+  /* ---- بنك الأسئلة والمستوى ---- */
+  const asItems = (arr) => (arr || []).map(([qq, a]) => ({ q: qq, a }));
+  function poolFor(L, level) {
+    const normal = asItems(BANK[L]);
+    const hard = asItems(HARD[L]);
+    const mine = custom.filter((c) => c.l === L);
+    let arr;
+    if (level === "normal") arr = normal.concat(mine);
+    else if (level === "hard") arr = (hard.length >= 3 ? hard : hard.concat(normal)).concat(mine);
+    else arr = normal.concat(hard, mine);
     const seen = new Set();
-    return (BANK[L] || []).map(([q, a]) => ({ q, a })).concat(custom.filter((c) => c.l === L))
-      .filter((x) => !seen.has(x.q) && seen.add(x.q));
+    return arr.filter((x) => !seen.has(x.q) && seen.add(x.q));
   }
-  function pickQuestion(L) {
-    const all = questionPool(L);
+  function pickQuestion(L, level) {
+    const all = poolFor(L, level);
     if (!all.length) return null;
     let seen = Array.isArray(used[L]) ? used[L] : [];
     let fresh = all.filter((x) => !seen.includes(x.q));
     if (!fresh.length) { seen = []; fresh = all; }
-    const q = fresh[Math.floor(Math.random() * fresh.length)];
-    used[L] = seen.concat(q.q);
+    let from = fresh;
+    if (level === "mixed") {
+      // نص الأسئلة تقريباً من الصعبة عشان ما تصير كلها سهلة
+      const hardSet = new Set(asItems(HARD[L]).map((x) => x.q));
+      const hardFresh = fresh.filter((x) => hardSet.has(x.q));
+      if (hardFresh.length && Math.random() < 0.5) from = hardFresh;
+    }
+    const item = from[Math.floor(Math.random() * from.length)];
+    used[L] = seen.concat(item.q);
     store.set("used", used);
-    return q;
+    return item;
   }
 
-  function loadQuestion(L) {
+  /* ================= السؤال ================= */
+  let q = null;              // السؤال الحالي
+  const Bell = window.HaroofBell || null;
+
+  function qStatusLine() {
+    if (!q) return "";
+    if (settings.play === "turn") return `الفرصة الحين عند ${nm(q.asked)}`;
+    return "أول من يجاوب ياخذ الخلية";
+  }
+
+  function openQuestion(i) {
+    if (game.frozen[i] && game.frozen[i].by !== game.turn) {
+      Sound.play("wrong");
+      toast(`❄️ هالحرف مجمّد! ما تقدرون تختارونه الحين`);
+      return;
+    }
+    q = { i, L: game.letters[i], phase: "prep", starter: game.turn, asked: game.turn, stage: 0, item: null, sec: 0 };
+    picked = i;
+    paint();
+    const L = q.L;
+    const sheet = $("#qSheet");
+    sheet.dataset.phase = "prep";
+    sheet.dataset.play = settings.play;
+    sheet.classList.remove("low", "done", "paused");
+    $("#qLetter").textContent = L;
+    $("#qLetterName").textContent = "تبدأ بحرف " + LETTER_NAMES[L];
+    const chip = $("#qChip");
+    chip.dataset.t = settings.play === "turn" ? String(q.starter) : "both";
+    chip.textContent = settings.play === "turn" ? `الدور على ${nm(q.starter)}` : "السؤال للفريقين: أول من يجاوب";
+    $("#prepNote").textContent = settings.play === "turn"
+      ? `جهّزوا ${nm(q.starter)}… لما تكونون جاهزين اضغط «اعرض السؤال» ويبدأ العدّاد.`
+      : "لما الكل جاهز اضغط «اعرض السؤال» ويبدأ العدّاد.";
+    $("#prepBox").hidden = false;
+    $("#liveBox").hidden = true;
+    $("#btnAnother").hidden = true;
+    $("#qKeys").textContent = "مسافة = اعرض السؤال";
+    Timer.reset();
+    const bl = $("#qLetter");
+    bl.style.animation = "none"; void bl.offsetWidth; bl.style.animation = "";
+    openModal("qModal");
+    Sound.play("tap");
+    queueSync();
+  }
+
+  function loadQuestion(level) {
     const box = $("#answerBox");
     box.classList.remove("shown");
-    const q = settings.mode === "bank" ? pickQuestion(L) : null;
-    if (q) {
-      $("#qText").textContent = q.q;
-      $("#qAnswer").textContent = q.a;
+    const item = settings.mode === "bank" ? pickQuestion(q.L, level) : null;
+    q.item = item;
+    if (item) {
+      $("#qMark").hidden = false;
+      $("#qBody").textContent = item.q;
+      $("#qAnswer").textContent = item.a;
       box.hidden = false;
-      $("#btnAnother").hidden = questionPool(L).length < 2;
+      $("#btnAnother").hidden = poolFor(q.L, level).length < 2;
     } else {
-      $("#qText").textContent = settings.mode === "bank"
+      $("#qMark").hidden = true;
+      $("#qBody").textContent = settings.mode === "bank"
         ? "ما فيه أسئلة لهذا الحرف، اسألهم سؤال من عندك."
-        : "اسألهم سؤال إجابته تبدأ بهذا الحرف.";
+        : "المقدم يسأل: سؤال إجابته تبدأ بهذا الحرف.";
       box.hidden = true;
       $("#btnAnother").hidden = true;
     }
   }
 
+  function showQuestion() {
+    if (!q || q.phase !== "prep") return;
+    q.phase = "live";
+    const sheet = $("#qSheet");
+    sheet.dataset.phase = "live";
+    const useHard = game.fx.hard[q.starter];
+    if (useHard) { game.fx.hard[q.starter] = false; toast("🔥 سؤال صعب! (تخريب من الخصم)"); }
+    q.level = useHard ? "hard" : settings.level;
+    loadQuestion(q.level);
+    let sec = settings.timer;
+    if (game.fx.timeCut[q.starter]) {
+      game.fx.timeCut[q.starter] = false;
+      if (sec) { sec = Math.max(5, Math.round(sec / 2)); toast(`⏱ وقتكم صار ${sec} ثانية (تخريب من الخصم)`); }
+    }
+    q.sec = sec;
+    $("#prepBox").hidden = true;
+    $("#liveBox").hidden = false;
+    $("#turnBox").hidden = settings.play !== "turn";
+    $("#raceBox").hidden = settings.play !== "race";
+    $("#btnA").textContent = "✓ " + nm(0);
+    $("#btnB").textContent = "✓ " + nm(1);
+    $("#turnStatus").textContent = qStatusLine();
+    $("#turnStatus").dataset.t = String(q.asked);
+    $("#qKeys").textContent = settings.play === "turn" ? "1 = صح · 2 = ما عرفوا · مسافة = الإجابة" : "1 · 2 = الفريق · 0 = ما أحد · مسافة = الإجابة";
+    Timer.start(sec);
+    Sound.play("open");
+    if (Bell && settings.play === "race") { Bell.questionOpened(q.L); buzzUI(Bell.isOn() ? "armed" : "off"); }
+    else buzzUI("off");
+    saveGame();
+    queueSync();
+  }
+
+  function stopQuestion() {
+    Timer.stop();
+    closeModal("qModal");
+    if (Bell) Bell.questionClosed();
+    buzzUI("off");
+    picked = -1;
+  }
+
+  // يغيّر الحرف: نرجع للوحة بدون ما يتغير شي
+  function cancelQuestion() {
+    if (!q) return;
+    stopQuestion();
+    q = null;
+    paint();
+    queueSync();
+  }
+
+  function finishQuestion(result) {   // 0 أو 1 = فريق جاوب صح، -1 ما أحد
+    if (!q) return;
+    const { i, starter } = q;
+    stopQuestion();
+    q = null;
+    thaw(starter);
+    let won = false;
+    if (result === 0 || result === 1) { Sound.play("correct"); won = setOwner(i, result); }
+    else { Sound.play("wrong"); paint(); }
+    if (won) { queueSync(); return; }
+    if ((result === 0 || result === 1) && settings.sab === "on") {
+      game.pendingSab = { team: result, starter };
+      saveGame();
+      setTimeout(() => { if (game.pendingSab) openSabotage(); }, 700);
+    } else {
+      advanceTurn(starter);
+    }
+    queueSync();
+  }
+
+  // «ما عرفوا» في طريقة دور بدور
+  function turnFail() {
+    if (!q) return;
+    if (q.stage === 0) {
+      q.stage = 1;
+      q.asked = 1 - q.starter;
+      Sound.play("wrong");
+      $("#turnStatus").textContent = `ما عرفوا… ${qStatusLine()}`;
+      $("#turnStatus").dataset.t = String(q.asked);
+      Timer.start(q.sec);
+      queueSync();
+    } else {
+      finishQuestion(-1);
+    }
+  }
+
   /* ---- الجرس (جهة المقدم) ---- */
-  const Bell = window.HaroofBell || null;
   let buzzTeam = -1;
   function buzzUI(kind, info) {
     const box = $("#buzzBox");
@@ -580,7 +849,7 @@
     if (kind === "locked") {
       buzzTeam = info.team;
       box.dataset.team = String(info.team);
-      st.textContent = `🔔 ${info.name} (${settings.teams[info.team].name}) ضغط أول!`;
+      st.textContent = `🔔 ${info.name} (${nm(info.team)}) ضغط أول!`;
     } else if (kind === "none") {
       buzzTeam = -1;
       st.textContent = "الجرس مقفل: الفريقين جرّبوا";
@@ -590,7 +859,7 @@
     }
     $("#buzzActions").hidden = kind !== "locked";
   }
-  $("#buzzOk").onclick = () => { if (buzzTeam >= 0) resolve(buzzTeam); };
+  $("#buzzOk").onclick = () => { if (buzzTeam >= 0) finishQuestion(buzzTeam); };
   $("#buzzBad").onclick = () => {
     if (!Bell || buzzTeam < 0) return;
     const r = Bell.rearm(buzzTeam);
@@ -607,41 +876,7 @@
     $("#btnBell").classList.toggle("on", Bell.isOn());
   }
 
-  function openQuestion(i) {
-    picked = i;
-    paint();
-    const L = game.letters[i];
-    $("#qLetter").textContent = L;
-    $("#qLetterName").textContent = "تبدأ بحرف " + LETTER_NAMES[L];
-    $("#btnA").textContent = "✓ " + settings.teams[0].name;
-    $("#btnB").textContent = "✓ " + settings.teams[1].name;
-    loadQuestion(L);
-    // إعادة تشغيل أنيميشن الحرف
-    const bl = $("#qLetter");
-    bl.style.animation = "none"; void bl.offsetWidth; bl.style.animation = "";
-    openModal("qModal");
-    Sound.play("open");
-    Timer.start(settings.timer);
-    if (Bell) { Bell.questionOpened(L); buzzUI(Bell.isOn() ? "armed" : "off"); }
-  }
-
-  function resolve(result) {   // 0 أو 1 = الفريق الفايز، -1 ما أحد، null إغلاق
-    if ($("#qModal").hidden) return;
-    Timer.stop();
-    closeModal("qModal");
-    if (Bell) Bell.questionClosed();
-    buzzUI("off");
-    const i = picked;
-    picked = -1;
-    if (result === 0 || result === 1) {
-      Sound.play("correct");
-      setOwner(i, result);
-    } else {
-      if (result === -1) Sound.play("wrong");
-      paint();
-    }
-  }
-
+  /* ---- المؤقت ---- */
   const Timer = (() => {
     const ring = $("#timerRing"), txt = $("#timerText"), sheet = $("#qSheet");
     const C = 2 * Math.PI * 46;
@@ -666,6 +901,8 @@
     }
     function run() { running = true; sheet.classList.remove("paused"); last = performance.now(); raf = requestAnimationFrame(loop); }
     return {
+      // مرحلة التحضير: الحلقة كاملة بدون عدّاد
+      reset() { this.stop(); total = 0; left = 0; sheet.classList.add("no-timer"); sheet.classList.remove("paused", "low", "done"); draw(); ring.style.strokeDashoffset = "0"; },
       start(sec) {
         this.stop();
         total = sec; left = sec; lastWhole = Math.ceil(sec);
@@ -693,17 +930,175 @@
     Sound.play("reveal");
   }
 
-  $("#btnA").onclick = () => resolve(0);
-  $("#btnB").onclick = () => resolve(1);
-  $("#btnNone").onclick = () => resolve(-1);
-  $("#btnCancel").onclick = () => resolve(null);
+  $("#btnShow").onclick = showQuestion;
+  $("#btnCancel").onclick = cancelQuestion;
+  $("#btnA").onclick = () => finishQuestion(0);
+  $("#btnB").onclick = () => finishQuestion(1);
+  $("#btnNone").onclick = () => finishQuestion(-1);
+  $("#tOk").onclick = () => { if (q) finishQuestion(q.asked); };
+  $("#tNo").onclick = turnFail;
   $("#btnReveal").onclick = reveal;
-  $("#qBadge").onclick = () => Timer.toggle();
+  $("#qBadge").onclick = () => { if (q && q.phase === "live") Timer.toggle(); };
   $("#btnAnother").onclick = () => {
-    loadQuestion(game.letters[picked]);
+    if (!q || q.phase !== "live") return;
+    loadQuestion(q.level || settings.level);
+    q.stage = 0; q.asked = q.starter;
+    $("#turnStatus").textContent = qStatusLine();
+    $("#turnStatus").dataset.t = String(q.asked);
     Sound.play("tap");
-    Timer.start(settings.timer);
+    Timer.start(q.sec);
+    if (Bell && settings.play === "race" && Bell.isOn()) { Bell.questionOpened(q.L); buzzUI("armed"); }
+    queueSync();
   };
+
+  /* ================= التخريب ================= */
+  const SABS = [
+    { id: "bomb", icon: "💣", name: "فجّر خلية", desc: "يفضّي خلية من خلاياهم",
+      ok: (t) => game.owners.some((o) => o === 1 - t) },
+    { id: "freeze", icon: "❄️", name: "جمّد حرف", desc: "ما يقدرون يختارونه دورين",
+      ok: () => game.owners.some((o, i) => o === -1 && !game.frozen[i]) },
+    { id: "time", icon: "⏱", name: "قصّر وقتهم", desc: "وقتهم ينقص للنص في سؤالهم الجاي",
+      ok: (t) => settings.timer > 0 && !game.fx.timeCut[1 - t] },
+    { id: "hard", icon: "🔥", name: "سؤال صعب", desc: "سؤالهم الجاي من الأسئلة الصعبة",
+      ok: (t) => settings.mode === "bank" && !game.fx.hard[1 - t] },
+    { id: "skip", icon: "⛔", name: "احرمهم دورهم", desc: "يفوت دورهم الجاي ويعيد دورك",
+      ok: (t) => !game.fx.skip[1 - t] },
+  ];
+
+  let targetMode = null;   // { kind, team, starter }
+
+  function openSabotage() {
+    const ps = game.pendingSab;
+    if (!ps) return;
+    const { team } = ps, opp = 1 - team;
+    $("#sabKicker").textContent = `🎯 أحسنتم يا ${nm(team)}!`;
+    $("#sabTitle").textContent = `اختاروا تخريب على ${nm(opp)}`;
+    const grid = $("#sabGrid");
+    grid.innerHTML = "";
+    SABS.forEach((s) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "sab-opt";
+      b.disabled = !s.ok(team);
+      const ic = document.createElement("span"); ic.className = "sab-ic"; ic.textContent = s.icon;
+      const tx = document.createElement("span"); tx.className = "sab-tx";
+      const n = document.createElement("b"); n.textContent = s.name;
+      const d = document.createElement("small"); d.textContent = b.disabled ? "ما ينفع الحين" : s.desc;
+      tx.append(n, d);
+      b.append(ic, tx);
+      b.onclick = () => chooseSabotage(s);
+      grid.append(b);
+    });
+    openModal("sabModal");
+    Sound.play("open");
+  }
+
+  function endSabotage(msg) {
+    const ps = game.pendingSab;
+    game.pendingSab = null;
+    closeModal("sabModal");
+    endTarget();
+    if (msg) toast(msg, 3400);
+    if (ps) advanceTurn(ps.starter);
+    queueSync();
+  }
+
+  function chooseSabotage(s) {
+    const ps = game.pendingSab;
+    if (!ps) return;
+    const team = ps.team, opp = 1 - team;
+    if (s.id === "bomb" || s.id === "freeze") {
+      closeModal("sabModal");
+      targetMode = { kind: s.id, team };
+      $("#targetText").textContent = s.id === "bomb"
+        ? `💣 اضغط على خلية ${nm(opp)} عشان تنفجر`
+        : "❄️ اضغط على حرف فاضي عشان يتجمّد";
+      $("#targetBar").hidden = false;
+      paint();
+      return;
+    }
+    if (s.id === "time") { game.fx.timeCut[opp] = true; Sound.play("buzz"); endSabotage(`⏱ ${nm(team)} قصّروا وقت ${nm(opp)}`); }
+    else if (s.id === "hard") { game.fx.hard[opp] = true; Sound.play("buzz"); endSabotage(`🔥 ${nm(team)} عطوا ${nm(opp)} سؤال صعب`); }
+    else if (s.id === "skip") { game.fx.skip[opp] = true; Sound.play("buzz"); endSabotage(`⛔ ${nm(team)} حرموا ${nm(opp)} من دورهم`); }
+  }
+
+  function endTarget() {
+    targetMode = null;
+    $("#targetBar").hidden = true;
+    paint();
+  }
+
+  function isTargetCell(i) {
+    if (!targetMode) return false;
+    if (targetMode.kind === "bomb") return game.owners[i] === 1 - targetMode.team;
+    return game.owners[i] === -1 && !game.frozen[i];
+  }
+
+  function pickTarget(i) {
+    if (!targetMode) return;
+    if (!isTargetCell(i)) {
+      Sound.play("wrong");
+      toast(targetMode.kind === "bomb" ? "اختاروا خلية ملوّنة بلون الخصم" : "اختاروا حرف فاضي", 1800);
+      return;
+    }
+    const { kind, team } = targetMode;
+    const opp = 1 - team;
+    if (kind === "bomb") {
+      snapshot();
+      game.owners[i] = -1;
+      saveGame();
+      const g = board.querySelector(`.cell[data-i="${i}"]`);
+      if (g) { g.classList.add("boom"); setTimeout(() => g.classList.remove("boom"), 900); }
+      const { x, y } = cellCenter(i);
+      FX.burst(x, y, ["#ff5a5f", "#f6b93b", "#ffffff", "#ff8c42"], 40);
+      Sound.play("boom");
+      endSabotage(`💣 ${nm(team)} فجّروا خلية ${nm(opp)}`);
+    } else {
+      game.frozen[i] = { by: team, left: 2 };
+      const { x, y } = cellCenter(i);
+      FX.burst(x, y, ["#bfe9ff", "#8fd3ff", "#ffffff"], 30);
+      Sound.play("freeze");
+      endSabotage(`❄️ ${nm(team)} جمّدوا حرفاً على ${nm(opp)}`);
+    }
+  }
+
+  $("#sabSkip").onclick = () => endSabotage(null);
+  $("#targetCancel").onclick = () => { endTarget(); if (game.pendingSab) openSabotage(); };
+
+  /* ================= مزامنة جوالات اللاعبين ================= */
+  let syncQueued = false;
+  function queueSync() {
+    if (syncQueued || !Bell) return;
+    syncQueued = true;
+    setTimeout(() => { syncQueued = false; Bell.setView(buildView()); }, 0);
+  }
+  function statusMessage() {
+    if (!game) return "";
+    if (game.roundOver) return `انتهت الجولة · فاز ${nm(game.winner)}`;
+    if (game.pendingSab) return `${nm(game.pendingSab.team)} يختارون تخريب…`;
+    if (!q) return `الدور على ${nm(game.turn)}: يختارون حرف`;
+    if (q.phase === "prep") return `${nm(q.starter)} اختاروا حرف ${q.L}… السؤال جاي`;
+    return settings.play === "turn" ? qStatusLine() : "أول واحد يضغط يجاوب";
+  }
+  function buildView() {
+    return {
+      n: game.size,
+      l: game.letters.join(""),
+      o: game.owners.map((o) => (o < 0 ? "." : o === 0 ? "a" : "b")).join(""),
+      fz: Object.keys(game.frozen).map(Number),
+      tn: game.turn,
+      ph: q ? q.phase : "idle",
+      md: settings.play,
+      ql: q ? q.L : "",
+      qt: q && q.phase === "live" && q.item ? q.item.q.slice(0, 160) : "",
+      as: q ? q.asked : -1,
+      pk: picked,
+      msg: statusMessage().slice(0, 90),
+      sc: game.score,
+    };
+  }
+  function note(msg) { if (Bell && Bell.setNote) Bell.setNote(String(msg).slice(0, 90)); }
+
 
   /* ---- تعديل خلية ملونة ---- */
   let editing = -1;
@@ -734,7 +1129,9 @@
   $$(".modal").forEach((m) => {
     m.addEventListener("click", (e) => {
       if (e.target !== m) return;
-      if (m.id === "qModal") resolve(null);
+      if (m.id === "qModal") cancelQuestion();
+      else if (m.id === "helpModal") closeModal("helpModal");
+      else if (m.id === "confirmModal") { closeModal("confirmModal"); confirmFn = null; }
       else if (m.id === "editModal") finishEdit(undefined);
       else if (m.id === "customModal") closeCustom();
       else if (m.id === "winModal") { closeModal("winModal"); updateHud(); }
@@ -779,10 +1176,16 @@
     $("#sizeNote").textContent = N > LETTERS.length
       ? `${N} خلية — بعض الحروف تتكرر`
       : `${N} خلية — كل حرف مرة وحدة`;
-    const bankCount = Object.values(BANK).reduce((s, a) => s + a.length, 0);
+    const bankCount = Object.values(BANK).reduce((s, a) => s + a.length, 0) + Object.values(HARD).reduce((s, a) => s + a.length, 0);
     $("#bankNote").textContent = `${bankCount} سؤال جاهز` + (custom.length ? ` + ${custom.length} من عندك` : "");
-    const sw = $("#swSound");
-    sw.setAttribute("aria-checked", String(!!draft.sound));
+    $("#playNote").textContent = draft.play === "turn"
+      ? "الفريق اللي دوره يختار حرف ويجاوب. لو ما عرف ينتقل السؤال للفريق الثاني، وبعدها الدور يروح للثاني."
+      : "كل فريق يختار حرف بدوره، والسؤال للفريقين، وأول من يجاوب (أو يضغط الجرس من جواله) ياخذ الخلية.";
+    $("#levelNote").textContent = draft.level === "normal"
+      ? "أسئلة عامة سهلة ومتوسطة."
+      : draft.level === "hard"
+        ? "أسئلة صعبة (لو حرف أسئلته الصعبة قليلة تنضاف العادية)."
+        : "خليط: نص الأسئلة تقريباً صعبة.";
     // معاينة الألوان في الشعار
     const root = document.documentElement.style;
     ["a", "b"].forEach((k, t) => {
@@ -822,13 +1225,7 @@
   for (const t of [0, 1]) {
     $("#name" + t).addEventListener("input", (e) => { draft.teams[t].name = e.target.value; });
   }
-  $("#swSound").onclick = () => {
-    draft.sound = !draft.sound;
-    settings.sound = draft.sound;
-    Sound.unlock();
-    Sound.play("tap");
-    renderSetup();
-  };
+
 
   function commitDraft() {
     draft.teams.forEach((tm, i) => { tm.name = (tm.name || "").trim() || "الفريق " + COLORS[tm.color].label; });
@@ -953,24 +1350,19 @@
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen().catch(() => {});
   }
-  function toggleSound() {
-    settings.sound = !settings.sound;
-    saveSettings();
-    applyTheme();
-    if (settings.sound) { Sound.unlock(); Sound.play("tap"); }
-  }
   $("#btnUndo").onclick = undo;
   $("#btnClear").onclick = clearBoard;
   $("#btnShuffle").onclick = reshuffle;
-  $("#btnSettings").onclick = () => { if (!anyModalOpen()) openSetup(); };
-  $("#btnBell").onclick = () => { if (Bell && !anyModalOpen()) Bell.openPanel(); };
+  $("#btnSettings").onclick = () => { if (!anyModalOpen() && !targetMode) openSetup(); };
+  $("#btnBell").onclick = () => { if (Bell && !anyModalOpen() && !targetMode) Bell.openPanel(); };
   $("#btnPlayerMode").onclick = () => { if (Bell) Bell.openPlayer(); };
-  $("#btnSound").onclick = toggleSound;
+  $("#btnHelp").onclick = () => { if (!anyModalOpen() && !targetMode) openModal("helpModal"); };
+  $("#helpClose").onclick = () => closeModal("helpModal");
   $("#btnFull").onclick = toggleFull;
   $("#btnNextFloat").onclick = continueAfterWin;
   for (const t of [0, 1]) {
     $("#team" + t).onclick = () => {
-      if (game.roundOver || anyModalOpen()) return;
+      if (game.roundOver || anyModalOpen() || targetMode) return;
       game.turn = t;
       paint();
       Sound.play("tap");
@@ -982,41 +1374,63 @@
   document.addEventListener("keydown", (e) => {
     const tag = e.target.tagName;
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
-    if (!$("#qModal").hidden) {
-      if (e.key === "1") resolve(0);
-      else if (e.key === "2") resolve(1);
-      else if (e.key === "0") resolve(-1);
-      else if (e.key === " ") { e.preventDefault(); reveal(); }
-      else if (e.key === "Escape") resolve(null);
+    if (!$("#qModal").hidden && q) {
+      if (e.key === "Escape") { cancelQuestion(); return; }
+      if (q.phase === "prep") {
+        if (e.key === " " || e.key === "Enter") { e.preventDefault(); showQuestion(); }
+      } else if (settings.play === "turn") {
+        if (e.key === "1") finishQuestion(q.asked);
+        else if (e.key === "2") turnFail();
+        else if (e.key === " ") { e.preventDefault(); reveal(); }
+      } else {
+        if (e.key === "1") finishQuestion(0);
+        else if (e.key === "2") finishQuestion(1);
+        else if (e.key === "0") finishQuestion(-1);
+        else if (e.key === " ") { e.preventDefault(); reveal(); }
+      }
       return;
     }
+    if (!$("#confirmModal").hidden) { if (e.key === "Escape") { closeModal("confirmModal"); confirmFn = null; } return; }
+    if (!$("#helpModal").hidden) { if (e.key === "Escape") closeModal("helpModal"); return; }
+    if (!$("#sabModal").hidden) return;
     if (!$("#editModal").hidden) { if (e.key === "Escape") finishEdit(undefined); return; }
     if (!$("#customModal").hidden) { if (e.key === "Escape") closeCustom(); return; }
     if (!$("#bellModal").hidden) { if (e.key === "Escape") $("#bellModal").hidden = true; return; }
     if (!$("#player").hidden) return;
     if (!$("#winModal").hidden) { if (e.key === "Escape") { closeModal("winModal"); updateHud(); } return; }
     if (!$("#setup").hidden) return;
+    if (targetMode) { if (e.key === "Escape") $("#targetCancel").click(); return; }
     const k = e.key.toLowerCase();
     if (k === "z" || k === "ئ") undo();
     else if (k === "f" || k === "ب") toggleFull();
-    else if (k === "m" || k === "ة") toggleSound();
   });
+
+  /* ================= إبقاء الشاشة شغالة ================= */
+  async function keepAwake() {
+    try {
+      if (navigator.wakeLock && document.visibilityState === "visible") await navigator.wakeLock.request("screen");
+    } catch (_) {}
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") keepAwake(); });
+  document.addEventListener("pointerdown", keepAwake, { once: true });
 
   /* ================= تشغيل ================= */
   document.documentElement.setAttribute("dir", "rtl");
   document.documentElement.setAttribute("lang", "ar");
   applyTheme();
+  keepAwake();
   if (Bell) {
     Bell.init({
       teams: () => settings.teams.map((t) => ({ n: t.name, c: COLORS[t.color].c, l: COLORS[t.color].l, d: COLORS[t.color].d })),
+      drawMini,
       onBuzz: (info) => {
-        if ($("#qModal").hidden) return;
+        if ($("#qModal").hidden || !q || q.phase !== "live") return;
         Timer.pause();
         Sound.play("buzz");
         buzzUI("locked", info);
       },
       onRoster: updateBellBadge,
-      onStatus: updateBellBadge,
+      onStatus: () => { updateBellBadge(); queueSync(); },
     });
   } else {
     $("#btnBell").hidden = true;
@@ -1027,6 +1441,7 @@
   if (game) {
     renderBoard(true);
     if (game.roundOver && !playerOnly) setTimeout(showWin, 700);
+    else if (game.pendingSab && !playerOnly) setTimeout(() => { if (game.pendingSab) openSabotage(); }, 700);
   } else {
     newMatch();
     if (!playerOnly) openSetup();

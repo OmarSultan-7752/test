@@ -51,9 +51,18 @@ def check(bank):
 
 
 bank = load_bank()
+hard = load_one("questions_hard.js", "QUESTION_BANK_HARD")
 problems = check(bank)
+known = {q for items in bank.values() for q, _ in items}
+for L, items in hard.items():
+    for q, a in items:
+        if first_letter(a) != L:
+            problems.append(f"[صعب {L}] الإجابة لا تبدأ بالحرف: {q} ← {a}")
+        if q in known:
+            problems.append(f"[صعب {L}] مكرر مع البنك العادي: {q}")
+        known.add(q)
 total = sum(len(v) for v in bank.values())
-print(f"بنك الأسئلة: {total} سؤال في {len(bank)} حرف")
+print(f"بنك الأسئلة: {total} عادي + {sum(len(v) for v in hard.values())} صعب")
 print("  " + "  ".join(f"{L}:{len(bank.get(L, []))}" for L in LETTERS))
 if problems:
     print("\n".join(problems))
@@ -66,7 +75,8 @@ css = (root / "style.css").read_text(encoding="utf-8")
 bell = (root / "bell.js").read_text(encoding="utf-8")
 js = (root / "app.js").read_text(encoding="utf-8")
 
-qs = "window.QUESTION_BANK = " + json.dumps(bank, ensure_ascii=False, separators=(",", ":")) + ";"
+qs = ("window.QUESTION_BANK = " + json.dumps(bank, ensure_ascii=False, separators=(",", ":")) + ";\n"
+      "window.QUESTION_BANK_HARD = " + json.dumps(hard, ensure_ascii=False, separators=(",", ":")) + ";")
 out = f"{head}\n<style>\n{css}\n</style>\n{app}\n<script>\n{qs}\n</script>\n<script>\n{bell}\n</script>\n<script>\n{js}\n</script>\n"
 dest = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else root / "dist" / "index.html")
 dest.parent.mkdir(parents=True, exist_ok=True)

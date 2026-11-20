@@ -40,7 +40,7 @@
   const isPlayerPeer = (p, code) => p && p.kind !== "agent" && p.presence && p.presence.app === APP && p.presence.role === "player" && p.presence.code === code;
 
   /* ================= جهة المقدم ================= */
-  const host = { on: false, code: "", ns: null, off: null, seq: 0, armed: false, banned: [], winner: null, letter: "", roster: [] };
+  const host = { on: false, code: "", ns: null, off: null, seq: 0, armed: false, banned: [], winner: null, letter: "", roster: [], view: null, note: null, noteN: 0, noteTimer: 0 };
 
   const newCode = () => String(Math.floor(1000 + Math.random() * 9000));
 
@@ -52,6 +52,8 @@
       seq: host.seq, armed: host.armed, banned: host.banned.slice(),
       winner: host.winner, letter: host.letter,
       teams: t.map((x) => ({ n: clean(x.n, 22), c: x.c, l: x.l, d: x.d })),
+      ...(host.view || {}),
+      nt: host.note,
     }));
   }
 
@@ -99,7 +101,7 @@
   function hostStop() {
     if (!host.on) return;
     try { host.off && host.off(); } catch (_) {}
-    quiet(host.ns && host.ns.presence({ app: null, role: null, code: null, seq: null, armed: null, banned: null, winner: null, letter: null, teams: null }));
+    quiet(host.ns && host.ns.presence({ app: null, role: null, code: null, seq: null, armed: null, banned: null, winner: null, letter: null, teams: null, n: null, l: null, o: null, fz: null, tn: null, ph: null, md: null, ql: null, qt: null, as: null, pk: null, msg: null, sc: null, nt: null }));
     if (host.ns && host.ns.leave) quiet(host.ns.leave());
     host.on = false; host.ns = null; host.roster = []; host.armed = false; host.winner = null;
     store.set({ on: false, code: host.code });
@@ -150,7 +152,7 @@
   }
 
   /* ================= جهة اللاعب ================= */
-  const pl = { ns: null, off: null, code: "", name: "", team: -1, n: 0, state: null, myPeer: "", pending: 0, waitTimer: 0 };
+  const pl = { ns: null, off: null, code: "", name: "", team: -1, n: 0, state: null, myPeer: "", pending: 0, waitTimer: 0, boardKey: "", noteK: 0, noteTimer: 0 };
 
   function plShow(which) {
     ["plConnect", "plTeam", "plBuzz"].forEach((id) => { $("#" + id).hidden = id !== which; });
@@ -221,13 +223,39 @@
     const box = $("#plBuzz");
     const mine = pl.team;
     box.dataset.team = String(mine);
-    $("#plChip").textContent = `${pl.name} · ${teams[mine].n}`;
-    $("#plLetter").textContent = s.letter || "";
+    $("#plChip").textContent = `${pl.name} · ${teams[mine].n}` + (s.tn === mine && !s.winner ? " · دوركم" : "");
+
+    // اللوحة الحية
+    const key = [s.n, s.l, s.o, JSON.stringify(s.fz || []), s.pk].join("|");
+    if (key !== pl.boardKey && ctx.drawMini) { pl.boardKey = key; ctx.drawMini($("#plBoard"), s); }
+
+    // السؤال
+    const qBox = $("#plQ");
+    if (s.ph === "live" && s.qt) { qBox.hidden = false; $("#plLetter").textContent = s.ql || ""; $("#plQText").textContent = clean(s.qt, 200); }
+    else if (s.ph === "prep") { qBox.hidden = false; $("#plLetter").textContent = s.ql || ""; $("#plQText").textContent = "جاهزين… السؤال جاي"; }
+    else if (s.ph === "live") { qBox.hidden = false; $("#plLetter").textContent = s.ql || ""; $("#plQText").textContent = "المقدم يسأل بصوته"; }
+    else qBox.hidden = true;
+
+    // ملاحظات التخريب
+    if (s.nt && s.nt.k && s.nt.k !== pl.noteK) {
+      pl.noteK = s.nt.k;
+      const n = $("#plNote");
+      n.textContent = clean(s.nt.t, 90);
+      n.hidden = false;
+      n.classList.remove("show"); void n.offsetWidth; n.classList.add("show");
+      clearTimeout(pl.noteTimer);
+      pl.noteTimer = setTimeout(() => { n.hidden = true; }, 5500);
+    }
+
     const banned = Array.isArray(s.banned) ? s.banned : [];
     const winner = s.winner && typeof s.winner === "object" ? s.winner : null;
     const btn = $("#plBtn"), txt = $("#plBtnText"), st = $("#plStatus");
+    const race = s.md === "race";
+    btn.hidden = !race;
     let mode, label, status;
-    if (winner) {
+    if (!race) {
+      mode = "idle"; label = ""; status = clean(s.msg, 90) || "…";
+    } else if (winner) {
       if (winner.peer === pl.myPeer) { mode = "won"; label = "أنت أول!"; status = "جاوب الحين"; }
       else { mode = "lost"; label = "سبقك"; status = `${clean(winner.name, 14)} ضغط أول`; }
     } else if (s.armed && !banned.includes(mine)) {
@@ -236,7 +264,7 @@
     } else if (banned.includes(mine)) {
       mode = "banned"; label = "خسرتوا الفرصة"; status = "الفريق الثاني له فرصة";
     } else {
-      mode = "idle"; label = "استنّ"; status = "السؤال الجاي";
+      mode = "idle"; label = "استنّ"; status = clean(s.msg, 90) || "السؤال الجاي";
     }
     box.dataset.mode = mode;
     txt.textContent = label;
@@ -320,6 +348,15 @@
     isOn: () => host.on,
     playerCount: () => host.roster.length,
     teamsChanged: publish,
+    setView(v) { host.view = v; publish(); },
+    setNote(text) {
+      if (!host.on) return;
+      host.noteN++;
+      host.note = { t: clean(text, 90), k: host.noteN };
+      publish();
+      clearTimeout(host.noteTimer);
+      host.noteTimer = setTimeout(() => { host.note = null; publish(); }, 7000);
+    },
     questionOpened(letter) {
       if (!host.on) return;
       host.seq++; host.armed = true; host.banned = []; host.winner = null; host.letter = letter || "";
