@@ -325,7 +325,7 @@
   function toggleControls() { $("controls").classList.toggle("hidden"); }
   function toggleFull() {
     if (document.fullscreenElement) document.exitFullscreen();
-    else document.documentElement.requestFullscreen?.();
+    else document.documentElement.requestFullscreen?.()?.catch?.(() => {});
   }
 
   $("btnShuffle").onclick = newRound;
@@ -373,6 +373,7 @@
   });
 
   /* ---------- تشغيل ---------- */
+  if (!document.fullscreenEnabled) $("btnFull").hidden = true;
   load();
   if (state.letters.length !== SIZE * SIZE) newLetters();
   if (state.owners.length !== SIZE * SIZE) state.owners = Array(SIZE * SIZE).fill(0);
