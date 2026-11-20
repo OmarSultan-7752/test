@@ -803,6 +803,7 @@
   }
 
   function stopQuestion() {
+    closePad();
     Timer.stop();
     closeModal("qModal");
     if (Bell) Bell.questionClosed();
@@ -892,6 +893,75 @@
     b.textContent = Bell.isOn() ? String(n) : "";
     $("#btnBell").classList.toggle("on", Bell.isOn());
   }
+
+  /* ---- شاشة الجرس على جوال واحد: نصف لكل فريق، وأول من يضغط يقفل ---- */
+  const pad = { on: false, winner: -1, banned: [], mirror: 0 };
+  function openPad() {
+    if (!q || q.phase !== "live") return;
+    pad.on = true; pad.winner = -1; pad.banned = [];
+    $("#pad").hidden = false;
+    $("#padAnsText").hidden = true;
+    $("#padNameA").textContent = nm(0);
+    $("#padNameB").textContent = nm(1);
+    clearInterval(pad.mirror);
+    pad.mirror = setInterval(() => { $("#padTimer").textContent = $("#timerText").textContent; }, 150);
+    $("#padTimer").textContent = $("#timerText").textContent;
+    renderPad();
+    Sound.play("tap");
+  }
+  function closePad() {
+    if (!pad.on) return;
+    pad.on = false;
+    clearInterval(pad.mirror);
+    $("#pad").hidden = true;
+  }
+  function renderPad() {
+    const bothBanned = pad.banned.length === 2;
+    [0, 1].forEach((t) => {
+      const b = $(t === 0 ? "#padA" : "#padB");
+      const hint = $(t === 0 ? "#padHintA" : "#padHintB");
+      const isWin = pad.winner === t;
+      const banned = pad.banned.includes(t);
+      b.classList.toggle("win", isWin);
+      b.classList.toggle("dim", (pad.winner >= 0 && !isWin) || banned);
+      b.disabled = pad.winner >= 0 || banned;
+      hint.textContent = isWin ? "جاوب!" : banned ? "خسرتوا الفرصة" : pad.winner >= 0 ? "" : "اضغط!";
+    });
+    $("#padJudge").hidden = pad.winner < 0;
+    $("#padNone").hidden = !(bothBanned && pad.winner < 0);
+    $("#padStatus").textContent = pad.winner >= 0
+      ? `${nm(pad.winner)} ضغطوا أول`
+      : bothBanned ? "الفريقين جرّبوا" : "جاهزين… أول واحد يضغط";
+  }
+  function padTap(team) {
+    if (!pad.on || pad.winner >= 0 || pad.banned.includes(team) || !q || q.phase !== "live") return;
+    pad.winner = team;
+    Timer.pause();
+    Sound.play("buzz");
+    try { navigator.vibrate && navigator.vibrate(80); } catch (_) {}
+    renderPad();
+  }
+  $("#btnPad").onclick = openPad;
+  // pointerdown أسرع من click ويلتقط الضغطتين لو جوا بنفس اللحظة تقريباً
+  $("#padA").addEventListener("pointerdown", (e) => { e.preventDefault(); padTap(0); });
+  $("#padB").addEventListener("pointerdown", (e) => { e.preventDefault(); padTap(1); });
+  $("#padOk").onclick = () => { const w = pad.winner; closePad(); if (w >= 0) finishQuestion(w); };
+  $("#padBad").onclick = () => {
+    if (pad.winner < 0) return;
+    pad.banned.push(pad.winner);
+    pad.winner = -1;
+    Sound.play("wrong");
+    Timer.resume();
+    renderPad();
+  };
+  $("#padNone").onclick = () => { closePad(); finishQuestion(-1); };
+  $("#padClose").onclick = () => { closePad(); Timer.resume(); };
+  $("#padFlip").onclick = () => { const p = $("#pad"); p.dataset.flip = p.dataset.flip === "1" ? "0" : "1"; };
+  $("#padAns").onclick = () => {
+    const box = $("#padAnsText");
+    box.textContent = q && q.item ? "ج: " + q.item.a : "المقدم يعرف الإجابة";
+    box.hidden = !box.hidden;
+  };
 
   /* ---- المؤقت ---- */
   const Timer = (() => {

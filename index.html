@@ -133,6 +133,7 @@
               <button class="buzz-bad" id="buzzBad">✗ غلط</button>
             </div>
           </div>
+          <button class="pad-open" id="btnPad">🔔 شاشة الجرس على هالجوال</button>
           <div class="q-actions">
             <button class="team-btn ta" id="btnA"></button>
             <button class="team-btn tb" id="btnB"></button>
@@ -476,6 +477,27 @@
       <button class="buzz-btn" id="plBtn"><span id="plBtnText"></span></button>
       <button class="link" id="plSwitch">غيّر الفريق</button>
     </div>
+  </div>
+
+  <!-- ===== شاشة الجرس على جوال واحد ===== -->
+  <div class="pad" id="pad" hidden data-flip="1">
+    <button class="pad-btn pad-a" id="padA"><span class="pad-name" id="padNameA"></span><span class="pad-hint" id="padHintA"></span></button>
+    <div class="pad-mid">
+      <div class="pad-timer" id="padTimer"></div>
+      <div class="pad-status" id="padStatus"></div>
+      <div class="pad-judge" id="padJudge" hidden>
+        <button class="buzz-ok" id="padOk">✓ صح</button>
+        <button class="buzz-bad" id="padBad">✗ غلط</button>
+      </div>
+      <button class="secondary pad-none" id="padNone" hidden>ما أحد عرف</button>
+      <div class="pad-ans" id="padAnsText" hidden></div>
+      <div class="pad-tools">
+        <button class="link" id="padAns">👁 الإجابة</button>
+        <button class="link" id="padFlip">↕ اقلب الكتابة</button>
+        <button class="link" id="padClose">✕ رجوع</button>
+      </div>
+    </div>
+    <button class="pad-btn pad-b" id="padB"><span class="pad-name" id="padNameB"></span><span class="pad-hint" id="padHintB"></span></button>
   </div>
 
   <canvas id="fx" aria-hidden="true"></canvas>

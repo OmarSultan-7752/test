@@ -1095,3 +1095,83 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 
 .bell-warn { margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(246, 185, 59, .12); border: 1px solid rgba(246, 185, 59, .45); color: var(--gold-2); text-align: start; line-height: 1.7; }
 .bell-warn b { color: var(--text); }
+
+
+/* ================= شاشة الجرس على جوال واحد ================= */
+.pad-open {
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1.5px solid var(--gold);
+  background: rgba(246, 185, 59, .12);
+  color: var(--gold-2);
+  font-weight: 800;
+  font-size: 17px;
+}
+.pad-open:hover { background: rgba(246, 185, 59, .2); }
+
+.pad {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr);
+  background: var(--bg);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.pad[hidden] { display: none; }
+.pad-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 0;
+  color: #fff;
+  font-family: var(--f-display);
+  transition: filter .2s, opacity .2s, transform .08s;
+  -webkit-touch-callout: none;
+}
+.pad-a { background: radial-gradient(circle at 50% 40%, var(--a-l), var(--a) 65%, var(--a-2)); }
+.pad-b { background: radial-gradient(circle at 50% 40%, var(--b-l), var(--b) 65%, var(--b-2)); }
+.pad[data-flip="1"] .pad-a { transform: rotate(180deg); }
+.pad-btn:active:not(:disabled) { filter: brightness(1.15); }
+.pad[data-flip="1"] .pad-a:active:not(:disabled) { transform: rotate(180deg) scale(.985); }
+.pad[data-flip="0"] .pad-a:active:not(:disabled), .pad-b:active:not(:disabled) { transform: scale(.985); }
+.pad-name { font-size: clamp(34px, 11vw, 64px); line-height: 1.1; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pad-hint { font-family: var(--f-body); font-weight: 800; font-size: clamp(18px, 5vw, 26px); opacity: .9; }
+.pad-btn.dim { filter: grayscale(.9) brightness(.45); }
+.pad-btn.win { animation: padWin .5s ease-out; box-shadow: inset 0 0 0 10px rgba(255, 255, 255, .75); }
+@keyframes padWin { 0% { filter: brightness(2); } 100% { filter: brightness(1); } }
+.pad-btn:disabled { cursor: default; }
+
+.pad-mid {
+  padding: 10px 14px;
+  background: #0d1a33;
+  border-block: 2px solid var(--gold);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.pad-timer { font-family: var(--f-display); font-size: 30px; color: var(--gold-2); min-height: 1.1em; font-variant-numeric: tabular-nums; }
+.pad-status { font-weight: 800; font-size: 18px; }
+.pad-judge { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; width: min(420px, 100%); }
+.pad-judge button { padding: 12px; border: 0; border-radius: 14px; color: #fff; font-weight: 800; font-size: 18px; }
+.pad-none { padding: 10px 18px; }
+.pad-ans { padding: 6px 16px; border-radius: 12px; background: rgba(246, 185, 59, .15); border: 1px solid var(--gold); color: var(--gold-2); font-weight: 800; font-size: 20px; }
+.pad-tools { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.pad-tools .link { font-size: 14px; padding: 6px 10px; }
+@media (orientation: landscape) and (max-height: 520px) {
+  .pad { grid-template-rows: none; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+  .pad[data-flip="1"] .pad-a { transform: none; }
+  .pad-mid { border-block: 0; border-inline: 2px solid var(--gold); justify-content: center; max-width: 42vw; }
+  .pad-name { font-size: clamp(26px, 8vh, 48px); }
+}
