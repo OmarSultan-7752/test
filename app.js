@@ -150,17 +150,38 @@
       tick:    () => note(1050, 0, 0.05, "square", 0.06),
       correct: () => { note(659, 0, 0.14, "triangle", 0.28); note(880, 0.1, 0.14, "triangle", 0.28); note(1319, 0.2, 0.32, "triangle", 0.26); },
       wrong:   () => { note(260, 0, 0.32, "sawtooth", 0.12, 150); },
-      timeup:  () => { note(196, 0, 0.32, "square", 0.12); note(185, 0.36, 0.5, "square", 0.12); },
       claim:   () => { note(440, 0, 0.09, "sine", 0.2, 880); note(1760, 0.07, 0.2, "sine", 0.07); },
       undo:    () => note(700, 0, 0.12, "sine", 0.14, 420),
       boom:    () => { note(160, 0, 0.45, "sawtooth", 0.3, 40); note(90, 0.02, 0.5, "square", 0.2, 30); },
       freeze:  () => { for (let i = 0; i < 5; i++) note(1800 - i * 220, i * 0.05, 0.14, "triangle", 0.1); },
-      // نغمة الافتتاح: حروف ح ر و ف تنزل وحدة وحدة، وبعدها مقطع لامع
+      // نغمة الافتتاح: مقدمة قصيرة مثل مقدمة أغنية (3 ثواني)، مو موسيقى مستمرة
       intro:   () => {
-        note(220, 0, 0.35, "sine", 0.1, 880);
-        [659, 784, 988, 1319].forEach((f, i) => { note(f, 0.18 + i * 0.2, 0.34, "triangle", 0.26); note(f * 2, 0.18 + i * 0.2, 0.2, "sine", 0.07); });
-        [659, 831, 988, 1319].forEach((f) => note(f, 1.05, 1.1, "triangle", 0.16));
-        [2093, 2637, 3136].forEach((f, i) => note(f, 1.1 + i * 0.07, 0.4, "sine", 0.05));
+        note(196, 0, 0.5, "sine", 0.16, 392);                                   // هبّة البداية
+        [523, 622, 784, 1047].forEach((f, i) => {                                // الحروف تنزل
+          note(f, 0.18 + i * 0.2, 0.34, "triangle", 0.26);
+          note(f * 2, 0.18 + i * 0.2, 0.2, "sine", 0.06);
+        });
+        [[1047, 1.1], [932, 1.32], [784, 1.54], [1047, 1.76], [1244, 2.0]].forEach(([f, t], i) => { // اللحن
+          note(f, t, i === 4 ? 0.9 : 0.24, "triangle", 0.24);
+          note(f / 2, t, 0.22, "sine", 0.08);
+        });
+        [[130.8, 0.2], [155.6, 0.8], [196, 1.4], [155.6, 2.0]].forEach(([f, t]) => note(f, t, 0.5, "sine", 0.22));   // باص
+        for (let i = 0; i < 12; i++) note(3000, 0.2 + i * 0.2, 0.03, "square", 0.025);                                 // إيقاع خفيف
+        [622, 784, 932, 1244].forEach((f) => note(f, 2.0, 1.0, "triangle", 0.13));                                    // الختام
+        [2093, 2637, 3136, 3951].forEach((f, i) => note(f, 2.05 + i * 0.06, 0.4, "sine", 0.045));
+      },
+      // بدء المباراة
+      start:   () => {
+        [392, 523, 659, 784].forEach((f, i) => note(f, i * 0.09, 0.22, "triangle", 0.24));
+        [523, 659, 784, 1047].forEach((f) => note(f, 0.4, 0.8, "triangle", 0.18));
+        note(130.8, 0.4, 0.6, "sine", 0.2);
+        [2093, 2637, 3136].forEach((f, i) => note(f, 0.45 + i * 0.07, 0.35, "sine", 0.05));
+      },
+      // انتهاء الوقت: صوت واضح ما يتفوّت
+      timeup:  () => {
+        [523, 392, 294].forEach((f, i) => note(f, i * 0.17, 0.3, "sawtooth", 0.22));
+        note(110, 0.5, 0.7, "sawtooth", 0.26, 70);
+        note(220, 0.5, 0.7, "square", 0.12, 140);
       },
       cell:    () => note(420 + Math.random() * 380, 0, 0.1, "triangle", 0.2, 900),
       type:    () => note(1700 + Math.random() * 500, 0, 0.03, "square", 0.04),
@@ -1457,7 +1478,7 @@
   $("#btnStart").onclick = () => {
     Sound.unlock();
     const hasProgress = game && (game.score[0] || game.score[1] || game.owners.some((o) => o !== -1));
-    const go = () => { commitDraft(); newMatch(); Sound.play("shuffle"); };
+    const go = () => { commitDraft(); newMatch(); Sound.play("start"); };
     if (!setupFresh && hasProgress) {
       askConfirm("ننهي اللعبة الحالية؟", "اللوحة والنتيجة تنمسح، وتبدأ مباراة جديدة بالإعدادات هذي.", "إي، أنهِ وابدأ", go);
     } else go();

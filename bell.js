@@ -383,7 +383,7 @@
     if (t.running && whole !== pl.lastWhole) {
       pl.lastWhole = whole;
       if (left > 0 && whole <= 5 && ctx.sound) ctx.sound("tick");
-      if (left <= 0) { try { navigator.vibrate && navigator.vibrate(200); } catch (_) {} }
+      if (left <= 0) { if (ctx.sound) ctx.sound("timeup"); try { navigator.vibrate && navigator.vibrate([200, 80, 200]); } catch (_) {} }
     }
   }
   // كتابة السؤال عند اللاعب: نكمل محلياً من آخر حالة وصلتنا من المقدم
