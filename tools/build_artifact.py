@@ -19,8 +19,9 @@ def load_one(name, var):
 
 def load_bank():
     bank = load_one("questions.js", "QUESTION_BANK")
-    for L, items in load_one("questions_more.js", "QUESTION_BANK_MORE").items():
-        bank.setdefault(L, []).extend(items)
+    for fname, var in (("questions_more.js", "QUESTION_BANK_MORE"), ("questions_nice.js", "QUESTION_BANK_NICE")):
+        for L, items in load_one(fname, var).items():
+            bank.setdefault(L, []).extend(items)
     return bank
 
 

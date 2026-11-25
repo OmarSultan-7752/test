@@ -1191,3 +1191,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   font-variant-numeric: tabular-nums;
 }
 .timer-input span { color: var(--muted); font-weight: 700; }
+
+.q-flag { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; margin-top: 10px; color: var(--muted); font-size: 14px; }
+.q-flag[hidden] { display: none; }
+.q-flag .link { font-size: 14px; padding: 6px 10px; border-radius: 999px; background: rgba(255, 255, 255, .06); }

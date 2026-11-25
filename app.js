@@ -28,6 +28,8 @@
   const BANK = window.QUESTION_BANK || {};
   const MORE = window.QUESTION_BANK_MORE || {};
   for (const L in MORE) BANK[L] = (BANK[L] || []).concat(MORE[L]);
+  const NICE = window.QUESTION_BANK_NICE || {};
+  for (const L in NICE) BANK[L] = (BANK[L] || []).concat(NICE[L]);
   const HARD = window.QUESTION_BANK_HARD || {};
 
   /* ================= التخزين ================= */
@@ -71,6 +73,9 @@
   let settings = loadSettings();
   let custom = store.get("custom", []);
   if (!Array.isArray(custom)) custom = [];
+  // تقييمكم للأسئلة: e = سهلة مرة، h = صعبة مرة
+  let flags = store.get("flags", {});
+  if (!flags || typeof flags !== "object") flags = {};
   let used = store.get("used", {});
   if (!used || typeof used !== "object") used = {};
   let game = store.get("game", null);
@@ -680,10 +685,18 @@
     const normal = asItems(BANK[L]);
     const hard = asItems(HARD[L]);
     const mine = custom.filter((c) => c.l === L);
+    const isE = (x) => flags[x.q] === "e";
+    const isH = (x) => flags[x.q] === "h";
     let arr;
-    if (level === "normal") arr = normal.concat(mine);
-    else if (level === "hard") arr = (hard.length >= 3 ? hard : hard.concat(normal)).concat(mine);
-    else arr = normal.concat(hard, mine);
+    if (level === "normal") {
+      arr = normal.filter((x) => !isH(x)).concat(mine.filter((x) => !isH(x)));
+    } else if (level === "hard") {
+      const hs = hard.filter((x) => !isE(x)).concat(normal.filter(isH), mine.filter(isH));
+      arr = hs.length >= 3 ? hs : hs.concat(normal.filter((x) => !isE(x)), mine.filter((x) => !isE(x)));
+    } else {
+      // مختلط: كل شي ما عدا اللي قيّمتوه "سهل"
+      arr = normal.filter((x) => !isE(x)).concat(hard.filter((x) => !isE(x)), mine.filter((x) => !isE(x)));
+    }
     const seen = new Set();
     return arr.filter((x) => !seen.has(x.q) && seen.add(x.q));
   }
@@ -696,7 +709,7 @@
     let from = fresh;
     if (level === "mixed") {
       // نص الأسئلة تقريباً من الصعبة عشان ما تصير كلها سهلة
-      const hardSet = new Set(asItems(HARD[L]).map((x) => x.q));
+      const hardSet = new Set(asItems(HARD[L]).map((x) => x.q).concat(Object.keys(flags).filter((k) => flags[k] === "h")));
       const hardFresh = fresh.filter((x) => hardSet.has(x.q));
       if (hardFresh.length && Math.random() < 0.5) from = hardFresh;
     }
@@ -755,6 +768,7 @@
     box.classList.remove("shown");
     const item = settings.mode === "bank" ? pickQuestion(q.L, level) : null;
     q.item = item;
+    $("#qFlag").hidden = !item;
     if (item) {
       $("#qMark").hidden = false;
       $("#qBody").textContent = item.q;
@@ -1018,6 +1032,16 @@
     Sound.play("reveal");
   }
 
+  function flagQuestion(kind) {
+    if (!q || !q.item) return;
+    flags[q.item.q] = kind;
+    store.set("flags", flags);
+    toast(kind === "e" ? "😴 تمام، ما راح تطلع لكم في المستوى المختلط والصعب" : "🤯 تمام، تطلع بس في المستوى الصعب");
+    Sound.play("tap");
+    $("#qFlag").hidden = true;
+  }
+  $("#flagEasy").onclick = () => flagQuestion("e");
+  $("#flagHard").onclick = () => flagQuestion("h");
   $("#btnShow").onclick = showQuestion;
   $("#btnCancel").onclick = cancelQuestion;
   $("#btnA").onclick = () => finishQuestion(0);
