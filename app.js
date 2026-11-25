@@ -1741,7 +1741,7 @@
     if (!sp) return;
     let seen = false;
     try { seen = sessionStorage.getItem("haroof3:splash") === "1"; } catch (_) {}
-    if (seen || playerOnly) { sp.hidden = true; return; }
+    if (seen) { sp.hidden = true; return; }
     // حروف عايمة في الخلفية
     const bg = $("#splashBg");
     for (let i = 0; i < 26; i++) {
