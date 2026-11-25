@@ -6,11 +6,11 @@
 """
 import json, pathlib, re, sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from letter_rule import first_letter
+
 root = pathlib.Path(__file__).resolve().parent.parent
 LETTERS = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي"
-HAMZA = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا"})
-
-
 def load_one(name, var):
     src = (root / name).read_text(encoding="utf-8")
     body = src[src.index("{", src.index(var)): src.rindex("}") + 1]
@@ -23,13 +23,6 @@ def load_bank():
         for L, items in load_one(fname, var).items():
             bank.setdefault(L, []).extend(items)
     return bank
-
-
-def first_letter(answer):
-    a = answer.strip()
-    if a.startswith("ال") and len(a) > 3:
-        a = a[2:]
-    return a[0].translate(HAMZA)
 
 
 def check(bank):

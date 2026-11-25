@@ -1423,3 +1423,9 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .sound-test .note { margin: 0; max-width: 34em; text-align: center; }
 #soundState[data-ok="1"] { color: #7fe3ac; }
 #soundState[data-ok="0"] { color: #ffb4b6; }
+
+.race-box.stealing > :not(#stealBox) { display: none; }
+.steal-box { margin-top: 4px; }
+.steal-box .turn-status { border-color: var(--gold); }
+.steal-box .turn-status[data-t="0"] { border-color: var(--a); }
+.steal-box .turn-status[data-t="1"] { border-color: var(--b); }

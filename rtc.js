@@ -149,11 +149,11 @@
       name,
       transport: "mqtt",
       broker: brokerIdx,
-      presence(patch) {
+      presence(patch, opts) {
         for (const k in patch) { if (patch[k] === null) delete mine[k]; else mine[k] = patch[k]; }
         if (JSON.stringify(mine).length > 3800) return Promise.reject(new Error("presence too large"));
         setPeer(myId, { ...mine });
-        publishSoon();
+        if (opts && opts.now) { clearTimeout(pubTimer); pubTimer = 0; publishNow(); } else publishSoon();
         return Promise.resolve();
       },
       peers: snapshot,

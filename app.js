@@ -795,7 +795,7 @@
       toast(`❄️ هالحرف مجمّد! ما تقدرون تختارونه الحين`);
       return;
     }
-    q = { i, L: game.letters[i], phase: "prep", starter: game.turn, asked: game.turn, stage: 0, item: null, sec: 0 };
+    q = { i, L: game.letters[i], phase: "prep", starter: game.turn, asked: game.turn, stage: 0, item: null, sec: 0, steal: -1 };
     picked = i;
     paint();
     const L = q.L;
@@ -827,12 +827,14 @@
   const Typer = (() => {
     const CHAR_MS = 50;
     let text = "", n = 0, timer = 0, active = false;
-    const paintTxt = () => { const t = text.slice(0, n); $("#qBody").textContent = t; const pq = $("#padQ"); if (pq) pq.textContent = t; };
+    // المقدم مو متسابق: يشوف السؤال كامل مباشرة. الكتابة التدريجية لشاشة الجرس وجوالات اللاعبين بس.
+    const paintTxt = () => { const pq = $("#padQ"); if (pq) pq.textContent = text.slice(0, n); };
     return {
       CHAR_MS,
       start(t) {
         this.clear();
         text = t; n = 0; active = true;
+        $("#qBody").textContent = t;
         paintTxt();
         this.resume();
       },
@@ -846,7 +848,7 @@
         }, CHAR_MS);
         queueSync();
       },
-      pause() { clearInterval(timer); timer = 0; queueSync(); },
+      pause() { clearInterval(timer); timer = 0; queueSync(true); },
       finish() { clearInterval(timer); timer = 0; n = text.length; paintTxt(); queueSync(); },
       clear() { clearInterval(timer); timer = 0; text = ""; n = 0; active = false; const pq = $("#padQ"); if (pq) pq.textContent = ""; },
       state() { return { active, n, len: text.length, running: !!timer }; },
@@ -909,6 +911,7 @@
 
   function stopQuestion() {
     closePad();
+    resetSteal();
     Typer.clear();
     Timer.stop();
     closeModal("qModal");
@@ -986,12 +989,31 @@
   $("#buzzOk").onclick = () => { if (buzzTeam >= 0) finishQuestion(buzzTeam); };
   $("#buzzBad").onclick = () => {
     if (!Bell || buzzTeam < 0) return;
-    const r = Bell.rearm(buzzTeam);
+    const wrongTeam = buzzTeam;
+    Bell.rearm(wrongTeam);
     Sound.play("wrong");
-    Timer.arm(q ? q.sec : 0);
-    if (r.armed) Typer.resume();
-    buzzUI(r.armed ? "armed" : "none");
+    startSteal(1 - wrongTeam);
   };
+  // بعد خطأ في الجرس: الفرصة تنتقل مباشرة للفريق الثاني (بدون جرس) والسؤال يكمل كامل
+  function resetSteal() {
+    $("#raceBox").classList.remove("stealing");
+    $("#stealBox").hidden = true;
+  }
+  function startSteal(team) {
+    if (!q) return;
+    q.steal = team; q.asked = team;
+    Typer.finish();
+    if (q.sec) Timer.start(q.sec); else Timer.arm(0);
+    $("#raceBox").classList.add("stealing");
+    $("#stealBox").hidden = false;
+    $("#stealStatus").textContent = `الفرصة عند ${nm(team)} — بدون جرس`;
+    $("#stealStatus").dataset.t = String(team);
+    buzzUI("off");
+    queueSync(true);
+  }
+  $("#stealOk").onclick = () => { if (q && q.steal >= 0) finishQuestion(q.steal); };
+  $("#stealNo").onclick = () => finishQuestion(-1);
+
   // أول ضغطة جرس: نوقف الكتابة ونبدأ وقت الإجابة
   function raceBuzzStarted() {
     Typer.pause();
@@ -1007,10 +1029,10 @@
   }
 
   /* ---- شاشة الجرس على جوال واحد: نصف لكل فريق، وأول من يضغط يقفل ---- */
-  const pad = { on: false, winner: -1, banned: [], mirror: 0 };
+  const pad = { on: false, winner: -1, banned: [], mirror: 0, steal: -1 };
   function openPad() {
     if (!q || q.phase !== "live") return;
-    pad.on = true; pad.winner = -1; pad.banned = [];
+    pad.on = true; pad.winner = -1; pad.banned = []; pad.steal = q && q.steal >= 0 ? q.steal : -1;
     $("#pad").hidden = false;
     $("#padAnsText").hidden = true;
     $("#padNameA").textContent = nm(0);
@@ -1028,22 +1050,22 @@
     $("#pad").hidden = true;
   }
   function renderPad() {
-    const bothBanned = pad.banned.length === 2;
+    const stealing = pad.steal >= 0;
     [0, 1].forEach((t) => {
       const b = $(t === 0 ? "#padA" : "#padB");
       const hint = $(t === 0 ? "#padHintA" : "#padHintB");
-      const isWin = pad.winner === t;
+      const isWin = pad.winner === t || (stealing && pad.steal === t);
       const banned = pad.banned.includes(t);
       b.classList.toggle("win", isWin);
-      b.classList.toggle("dim", (pad.winner >= 0 && !isWin) || banned);
-      b.disabled = pad.winner >= 0 || banned;
-      hint.textContent = isWin ? "جاوب!" : banned ? "خسرتوا الفرصة" : pad.winner >= 0 ? "" : "اضغط!";
+      b.classList.toggle("dim", stealing ? pad.steal !== t : ((pad.winner >= 0 && !isWin) || banned));
+      b.disabled = stealing || pad.winner >= 0 || banned;
+      hint.textContent = stealing ? (isWin ? "جاوبوا!" : "خسرتوا الفرصة") : isWin ? "جاوب!" : banned ? "خسرتوا الفرصة" : pad.winner >= 0 ? "" : "اضغط!";
     });
-    $("#padJudge").hidden = pad.winner < 0;
-    $("#padNone").hidden = !(bothBanned && pad.winner < 0);
-    $("#padStatus").textContent = pad.winner >= 0
-      ? `${nm(pad.winner)} ضغطوا أول`
-      : bothBanned ? "الفريقين جرّبوا" : "جاهزين… أول واحد يضغط";
+    $("#padJudge").hidden = !(pad.winner >= 0 || stealing);
+    $("#padNone").hidden = true;
+    $("#padStatus").textContent = stealing
+      ? `الفرصة عند ${nm(pad.steal)} — بدون جرس`
+      : pad.winner >= 0 ? `${nm(pad.winner)} ضغطوا أول` : "جاهزين… أول واحد يضغط";
   }
   function padTap(team) {
     if (!pad.on || pad.winner >= 0 || pad.banned.includes(team) || !q || q.phase !== "live") return;
@@ -1057,14 +1079,16 @@
   // pointerdown أسرع من click ويلتقط الضغطتين لو جوا بنفس اللحظة تقريباً
   $("#padA").addEventListener("pointerdown", (e) => { e.preventDefault(); padTap(0); });
   $("#padB").addEventListener("pointerdown", (e) => { e.preventDefault(); padTap(1); });
-  $("#padOk").onclick = () => { const w = pad.winner; closePad(); if (w >= 0) finishQuestion(w); };
+  $("#padOk").onclick = () => { const w = pad.steal >= 0 ? pad.steal : pad.winner; closePad(); if (w >= 0) finishQuestion(w); };
   $("#padBad").onclick = () => {
     if (pad.winner < 0) return;
-    pad.banned.push(pad.winner);
+    if (pad.steal >= 0) { closePad(); finishQuestion(-1); return; }     // الفريق الثاني بعد غلط
+    const wrongTeam = pad.winner;
+    pad.banned.push(wrongTeam);
     pad.winner = -1;
+    pad.steal = 1 - wrongTeam;
     Sound.play("wrong");
-    Timer.arm(q ? q.sec : 0);
-    if (pad.banned.length < 2) Typer.resume();
+    startSteal(pad.steal);
     renderPad();
   };
   $("#padNone").onclick = () => { closePad(); finishQuestion(-1); };
@@ -1154,7 +1178,7 @@
   $("#btnAnother").onclick = () => {
     if (!q || q.phase !== "live") return;
     loadQuestion(q.level || settings.level);
-    q.stage = 0; q.asked = q.starter;
+    q.stage = 0; q.asked = q.starter; q.steal = -1; resetSteal();
     $("#turnStatus").textContent = qStatusLine();
     $("#turnStatus").dataset.t = String(q.asked);
     Sound.play("tap");
@@ -1281,8 +1305,10 @@
 
   /* ================= مزامنة جوالات اللاعبين ================= */
   let syncQueued = false;
-  function queueSync() {
-    if (syncQueued || !Bell) return;
+  function queueSync(urgent) {
+    if (!Bell) return;
+    if (urgent) { syncQueued = false; Bell.setView(buildView(), true); return; }
+    if (syncQueued) return;
     syncQueued = true;
     setTimeout(() => { syncQueued = false; Bell.setView(buildView()); }, 0);
   }
@@ -1306,6 +1332,7 @@
       ql: q ? q.L : "",
       qt: q && q.phase === "live" && q.item ? q.item.q.slice(0, 160) : "",
       as: q ? q.asked : -1,
+      st: q ? q.steal : -1,
       pk: picked,
       msg: statusMessage().slice(0, 90),
       sc: game.score,
@@ -1549,8 +1576,11 @@
     });
   }
   const HAMZA = { "أ": "ا", "إ": "ا", "آ": "ا" };
+  const GENERIC = ["قناة", "جبل", "جزر", "جزيرة", "نهر", "بحر", "مضيق", "خليج", "سورة", "غزوة", "معركة", "مسجد", "جامعة", "برج", "وادي", "سور", "سد", "شلالات", "غابة", "تلسكوب", "قانون", "لوحة", "يوم", "ليلة", "بيعة", "صلح", "حجر", "طريق", "الدولة", "المسجد", "الجامعة"];
   function letterOf(answer) {
-    let a = answer.trim();
+    const parts = answer.trim().split(/\s+/);
+    if (parts.length >= 2 && GENERIC.includes(parts[0])) parts.shift();
+    let a = parts.join(" ");
     if (a.startsWith("ال") && a.length > 3) a = a.slice(2);
     const ch = HAMZA[a[0]] || a[0];
     return LETTERS.includes(ch) ? ch : null;

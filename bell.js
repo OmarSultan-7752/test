@@ -58,7 +58,7 @@
     ? String(Math.floor(100000 + Math.random() * 900000))
     : String(Math.floor(1000 + Math.random() * 9000)));
 
-  function publish() {
+  function publish(urgent) {
     if (!host.on || !host.ns) return;
     const t = ctx.teams();
     quiet(host.ns.presence({
@@ -68,7 +68,7 @@
       teams: t.map((x) => ({ n: clean(x.n, 22), c: x.c, l: x.l, d: x.d })),
       ...(host.view || {}),
       nt: host.note,
-    }));
+    }, urgent ? { now: true } : undefined));
   }
 
   function rosterFrom(peers) {
@@ -95,7 +95,7 @@
     const p = cands[0];
     host.armed = false;
     host.winner = { team: p.presence.team, name: clean(p.presence.name, 14) || "لاعب", peer: p.peer };
-    publish();
+    publish(true);
     ctx.onBuzz(host.winner);
   }
 
@@ -345,6 +345,8 @@
     // قائمة التخريب: تظهر للجميع عشان يعرفون الخيارات بدون ما المقدم يقرأها
     renderSabMenu(s, teams, mine);
 
+    if (s.winner || s.st === 0 || s.st === 1) freezeTyping();   // أي فريق ضغط: الكتابة تقف عندنا فوراً
+
     const banned = Array.isArray(s.banned) ? s.banned : [];
     const winner = s.winner && typeof s.winner === "object" ? s.winner : null;
     const btn = $("#plBtn"), txt = $("#plBtnText"), st = $("#plStatus");
@@ -356,6 +358,9 @@
     } else if (winner) {
       if (winner.peer === pl.myPeer) { mode = "won"; label = "أنت أول!"; status = "جاوب الحين"; }
       else { mode = "lost"; label = "سبقك"; status = `${clean(winner.name, 14)} ضغط أول`; }
+    } else if (s.st === 0 || s.st === 1) {
+      if (s.st === mine) { mode = "won"; label = "جاوبوا!"; status = "الفرصة عندكم، بدون جرس"; }
+      else { mode = "lost"; label = "انتظروا"; status = `الفرصة عند ${clean(teams[s.st].n, 22)}`; }
     } else if (s.armed && !banned.includes(mine)) {
       if (pl.pending && Date.now() - pl.pending < 1500) { mode = "pending"; label = "…"; status = "وصل ضغطك"; }
       else { mode = "armed"; label = "اضغط!"; status = "أول واحد يضغط يجاوب"; }
@@ -426,6 +431,15 @@
     if (first) { if (ctx.sound) ctx.sound("open"); try { navigator.vibrate && navigator.vibrate(60); } catch (_) {} }
   }
 
+  // نوقف كتابة السؤال عندنا فوراً (بدون ما ننتظر رد المقدم)
+  function freezeTyping() {
+    if (pl.qp && pl.qp.run) {
+      const n = pl.shown >= 0 ? pl.shown : pl.qp.n;
+      pl.qp = { n, run: false, ms: pl.qp.ms, at: Date.now() };
+      tickTyping();
+    }
+  }
+
   // إعلان التخريب بشاشة كاملة عشان الكل يعرف
   function showSab(text) {
     const box = $("#plSab");
@@ -457,7 +471,8 @@
     if (!s || !s.armed || !pl.ns) return;
     pl.n++;
     pl.pending = Date.now();
-    quiet(pl.ns.presence({ buzz: { seq: s.seq, n: pl.n } }));
+    quiet(pl.ns.presence({ buzz: { seq: s.seq, n: pl.n } }, { now: true }));
+    freezeTyping();
     if (ctx.sound) ctx.sound("buzz");
     try { navigator.vibrate && navigator.vibrate(60); } catch (_) {}
     plRender();
@@ -538,7 +553,7 @@
     isOn: () => host.on,
     playerCount: () => host.roster.length,
     teamsChanged: publish,
-    setView(v) { host.view = v; publish(); },
+    setView(v, urgent) { host.view = v; publish(urgent); },
     setNote(text) {
       if (!host.on) return;
       host.noteN++;
@@ -561,9 +576,9 @@
     rearm(team) {
       if (!host.on) return { armed: false };
       if (!host.banned.includes(team)) host.banned.push(team);
-      host.seq++; host.winner = null; host.armed = host.banned.length < 2;
-      publish();
-      return { armed: host.armed };
+      host.seq++; host.winner = null; host.armed = false;   // الفرصة تنتقل مباشرة للثاني بدون جرس
+      publish(true);
+      return { armed: false };
     },
   };
 })();
