@@ -131,6 +131,13 @@
       undo:    () => note(700, 0, 0.12, "sine", 0.14, 420),
       boom:    () => { note(160, 0, 0.45, "sawtooth", 0.3, 40); note(90, 0.02, 0.5, "square", 0.2, 30); },
       freeze:  () => { for (let i = 0; i < 5; i++) note(1800 - i * 220, i * 0.05, 0.14, "triangle", 0.1); },
+      // نغمة الافتتاح: حروف ح ر و ف تنزل وحدة وحدة، وبعدها مقطع لامع
+      intro:   () => {
+        note(220, 0, 0.35, "sine", 0.1, 880);
+        [659, 784, 988, 1319].forEach((f, i) => { note(f, 0.18 + i * 0.2, 0.34, "triangle", 0.26); note(f * 2, 0.18 + i * 0.2, 0.2, "sine", 0.07); });
+        [659, 831, 988, 1319].forEach((f) => note(f, 1.05, 1.1, "triangle", 0.16));
+        [2093, 2637, 3136].forEach((f, i) => note(f, 1.1 + i * 0.07, 0.4, "sine", 0.05));
+      },
       buzz:    () => { note(880, 0, 0.18, "square", 0.16); note(660, 0.1, 0.35, "square", 0.16); },
       shuffle: () => { for (let i = 0; i < 6; i++) note(500 + i * 120, i * 0.04, 0.06, "triangle", 0.08); },
       win:     () => {
@@ -140,6 +147,7 @@
     };
     return {
       unlock() { init(); },
+      running() { return !!(ctx && ctx.state === "running"); },
       play(name) {
         if (!init()) return;
         try { sounds[name] && sounds[name](); } catch (_) {}
@@ -1544,6 +1552,53 @@
   }
   updateBellBadge();
   const playerOnly = location.hash === "#bell";
+
+  /* ================= شاشة الافتتاح ================= */
+  (function splash() {
+    const sp = $("#splash");
+    if (!sp) return;
+    let seen = false;
+    try { seen = sessionStorage.getItem("haroof3:splash") === "1"; } catch (_) {}
+    if (seen || playerOnly) { sp.hidden = true; return; }
+    // حروف عايمة في الخلفية
+    const bg = $("#splashBg");
+    for (let i = 0; i < 26; i++) {
+      const s = document.createElement("span");
+      s.className = "sb";
+      s.textContent = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+      s.style.left = (Math.random() * 100).toFixed(1) + "%";
+      s.style.fontSize = (26 + Math.random() * 90).toFixed(0) + "px";
+      s.style.animationDuration = (7 + Math.random() * 8).toFixed(1) + "s";
+      s.style.animationDelay = (-Math.random() * 12).toFixed(1) + "s";
+      s.style.setProperty("--o", (0.07 + Math.random() * 0.14).toFixed(2));
+      s.style.setProperty("--r", (Math.random() * 60 - 30).toFixed(0) + "deg");
+      bg.append(s);
+    }
+    let started = false, ended = false, t0 = 0;
+    const end = () => {
+      if (ended) return;
+      ended = true;
+      sp.classList.add("out");
+      try { sessionStorage.setItem("haroof3:splash", "1"); } catch (_) {}
+      setTimeout(() => { sp.hidden = true; }, 650);
+    };
+    const start = () => {
+      if (started) return;
+      started = true;
+      t0 = Date.now();
+      sp.classList.add("go");
+      Sound.unlock();
+      Sound.play("intro");
+      setTimeout(end, 3100);
+    };
+    // لو المتصفح يسمح بالصوت نبدأ مباشرة، وإلا ننتظر أول لمسة
+    Sound.unlock();
+    setTimeout(() => { if (Sound.running()) start(); }, 150);
+    sp.addEventListener("pointerdown", () => {
+      if (!started) start();
+      else if (Date.now() - t0 > 1400) end();
+    });
+  })();
   if (game) {
     renderBoard(true);
     if (game.roundOver && !playerOnly) setTimeout(showWin, 700);
