@@ -90,22 +90,7 @@
 
   /* ================= الأصوات ================= */
   const Sound = (() => {
-    let ctx = null, master = null, silentEl = null, alive = null, stateCb = null;
-    // نخلي مسار الصوت صاحي: الايفون ينيّم الصوت لو ما فيه شي، وبعدها الأصوات القصيرة تنبلع.
-    // نشغّل ضجيج خافت جداً (غير مسموع) بشكل مستمر.
-    function keepAlive() {
-      if (alive || !ctx) return;
-      try {
-        const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-        const d = buf.getChannelData(0);
-        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.003;
-        const src = ctx.createBufferSource();
-        src.buffer = buf; src.loop = true;
-        src.connect(ctx.destination);
-        src.start(0);
-        alive = src;
-      } catch (_) {}
-    }
+    let ctx = null, master = null, silentEl = null, stateCb = null;
     // الايفون: زر الصامت يكتم صوت المتصفح، فنخلي الجلسة "تشغيل" ونشغّل مقطع صامت
     function iosAudioFix() {
       try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (_) {}
@@ -136,10 +121,9 @@
           const comp = ctx.createDynamicsCompressor();
           master.connect(comp);
           comp.connect(ctx.destination);
-          ctx.onstatechange = () => { if (ctx.state === "running") keepAlive(); if (stateCb) stateCb(ctx.state); };
+          ctx.onstatechange = () => { if (stateCb) stateCb(ctx.state); };
         } catch (_) { ctx = null; return null; }
       }
-      if (ctx.state === "running") keepAlive();
       if (ctx.state !== "running") {
         ctx.resume().catch(() => {});
         try { const b = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(0); } catch (_) {}
