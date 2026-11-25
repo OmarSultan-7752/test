@@ -9,8 +9,9 @@
   const APP = "hrf";
   const KEY = "haroof3:bell";
   let ctx = null;
-  let roomNs = null;       // نتيجة claude.use("room")
+  let roomNs = null;       // نتيجة claude.use("room") أو الاتصال المستقل
   let roomTried = false;
+  let transport = "claude"; // "claude" داخل claude.ai، و"mqtt" لما تنفتح اللعبة مستقلة
 
   const store = {
     get() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (_) { return {}; } },
@@ -25,13 +26,20 @@
     try {
       roomNs = window.claude && window.claude.use ? await window.claude.use("room") : null;
     } catch (_) { roomNs = null; }
+    if (!roomNs && window.HaroofRTC) { roomNs = window.HaroofRTC; transport = "mqtt"; }
     return roomNs;
   }
+  const noRoomMsg = () => transport === "mqtt"
+    ? "ما قدرنا نتصل بخدمة الجرس. تأكد من الإنترنت وجرّب مرة ثانية."
+    : "ما قدرنا نربطك بالجرس. هالميزة تحتاج تدخل بحساب Claude وصاحب اللعبة يدعوك بالإيميل من زر Share. اللي يفتح الرابط العام كزائر ما يقدر.";
 
   // غرفة باسم الرمز، وإذا ما انسمح بها نرجع للغرفة العامة (ونفلتر بالرمز دايماً)
   async function joinCode(code) {
     const r = await getRoom();
     if (!r) return null;
+    if (transport === "mqtt") {
+      try { return await r.join("hrf-" + code); } catch (_) { return null; }
+    }
     let ns = r;
     try { ns = await r.join("hrf-" + code); } catch (_) { ns = r; }
     return ns;
@@ -42,7 +50,10 @@
   /* ================= جهة المقدم ================= */
   const host = { on: false, code: "", ns: null, off: null, seq: 0, armed: false, banned: [], winner: null, letter: "", roster: [], view: null, note: null, noteN: 0, noteTimer: 0 };
 
-  const newCode = () => String(Math.floor(1000 + Math.random() * 9000));
+  // داخل claude.ai الغرفة مقصورة على المدعوين فالرمز 4 أرقام، وفي الخدمة العامة نخليه 6 عشان يصعب تخمينه
+  const newCode = () => (transport === "mqtt"
+    ? String(Math.floor(100000 + Math.random() * 900000))
+    : String(Math.floor(1000 + Math.random() * 9000)));
 
   function publish() {
     if (!host.on || !host.ns) return;
@@ -87,7 +98,9 @@
 
   async function hostStart(wantedCode) {
     if (host.on) return true;
-    const code = wantedCode || store.get().code || newCode();
+    await getRoom();
+    let code = wantedCode || store.get().code || newCode();
+    if (transport === "mqtt" && String(code).length < 6) code = newCode();
     const ns = await joinCode(code);
     if (!ns) return false;
     host.ns = ns; host.code = code; host.on = true;
@@ -121,6 +134,10 @@
   function renderPanel() {
     const m = $("#bellModal");
     if (!m || m.hidden) return;
+    const warn = $(".bell-warn");
+    if (warn) warn.hidden = transport === "mqtt";
+    const pub = $("#bellPublic");
+    if (pub) pub.hidden = transport !== "mqtt";
     $("#bellNA").hidden = !(roomTried && !roomNs);
     $("#bellOff").hidden = host.on || (roomTried && !roomNs);
     $("#bellOn").hidden = !host.on;
@@ -159,17 +176,17 @@
   }
 
   async function plJoin() {
-    const code = clean($("#plCode").value, 4).replace(/\D/g, "");
+    const code = clean($("#plCode").value, 6).replace(/\D/g, "");
     const name = clean($("#plName").value, 14);
     const msg = $("#plMsg");
-    if (code.length !== 4) { msg.textContent = "الرمز أربع أرقام."; $("#plCode").focus(); return; }
+    if (code.length < 4) { msg.textContent = "اكتب الرمز كامل."; $("#plCode").focus(); return; }
     if (!name) { msg.textContent = "اكتب اسمك."; $("#plName").focus(); return; }
     msg.textContent = "جاري الاتصال…";
     $("#plGo").disabled = true;
     const ns = await joinCode(code);
     $("#plGo").disabled = false;
     if (!ns) {
-      msg.textContent = "ما قدرنا نربطك بالجرس. هالميزة تحتاج تدخل بحساب Claude وصاحب اللعبة يدعوك بالإيميل من زر Share. اللي يفتح الرابط العام كزائر ما يقدر.";
+      msg.textContent = noRoomMsg();
       return;
     }
     pl.ns = ns; pl.code = code; pl.name = name; pl.state = null;
@@ -306,7 +323,7 @@
         if (saved.team === 0 || saved.team === 1) pl.team = saved.team;
       }
     } catch (_) {}
-    getRoom().then((r) => { if (!r) $("#plMsg").textContent = "ما قدرنا نربطك بالجرس. هالميزة تحتاج تدخل بحساب Claude وصاحب اللعبة يدعوك بالإيميل من زر Share. اللي يفتح الرابط العام كزائر ما يقدر."; });
+    getRoom().then((r) => { if (!r) $("#plMsg").textContent = noRoomMsg(); });
   }
 
   /* ================= ربط العناصر ================= */
@@ -315,7 +332,7 @@
       $("#bellStart").disabled = true;
       const ok = await hostStart();
       $("#bellStart").disabled = false;
-      if (!ok) { $("#bellNA").hidden = false; $("#bellOff").hidden = true; }
+      if (!ok) { $("#bellNAText").textContent = transport === "mqtt" ? "ما قدرنا نتصل بخدمة الجرس. تأكد من الإنترنت وجرّب مرة ثانية." : "الجرس يشتغل بس لما تفتح اللعبة من الرابط المنشور وأنت مسجّل دخول."; $("#bellNA").hidden = false; $("#bellOff").hidden = true; }
       renderPanel();
     };
     $("#bellStop").onclick = () => { hostStop(); renderPanel(); };

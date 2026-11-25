@@ -414,11 +414,12 @@
       <div id="bellOff">
         <p class="muted">كل لاعب يدخل من جواله: يشوف اللوحة والسؤال، ويضغط الجرس. ما تحتاجون شاشة عرض.</p>
         <button class="primary" id="bellStart">شغّل الجرس</button>
+        <p class="note" id="bellPublic" hidden>يشتغل عبر خدمة اتصال عامة ومجانية: اللاعب يحتاج الرمز بس، بدون أي حساب. السؤال واسم اللاعب يمرون عليها، والإجابة ما تنرسل أبداً.</p>
         <p class="note bell-warn">مهم: كل لاعب لازم يدخل بحساب Claude وتدعوه بالإيميل من زر <b>Share</b> في الصفحة. اللي يفتح الرابط العام كزائر ما يقدر يستخدم الجرس.</p>
       </div>
 
       <div id="bellNA" hidden>
-        <p class="muted">الجرس يشتغل بس لما تفتح اللعبة من الرابط المنشور وأنت مسجّل دخول. من الملف المحلي ما يشتغل.</p>
+        <p class="muted" id="bellNAText">الجرس يشتغل بس لما تفتح اللعبة من الرابط المنشور وأنت مسجّل دخول. من الملف المحلي ما يشتغل.</p>
       </div>
 
       <div id="bellOn" hidden>
@@ -452,7 +453,7 @@
     <div class="pl-panel" id="plConnect">
       <h2>ادخل من جوالك</h2>
       <label for="plCode">رمز اللعبة</label>
-      <input id="plCode" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="0000">
+      <input id="plCode" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="000000">
       <label for="plName">اسمك</label>
       <input id="plName" maxlength="14" autocomplete="off" placeholder="مثلاً: أبو فهد">
       <button class="primary big" id="plGo">اتصل</button>
@@ -506,6 +507,8 @@
 <script src="questions.js"></script>
 <script src="questions_more.js"></script>
 <script src="questions_hard.js"></script>
+<script src="vendor/mqtt.min.js"></script>
+<script src="rtc.js"></script>
 <script src="bell.js"></script>
 <script src="app.js"></script>
 </body>
