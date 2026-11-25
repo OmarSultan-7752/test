@@ -231,8 +231,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .cell.win .glow { animation: glow 1.3s ease-in-out infinite; animation-delay: var(--wd, 0s); }
 @keyframes glow { 0%, 100% { opacity: 0; } 50% { opacity: .42; } }
 
-.edge { stroke-width: 12; stroke-linecap: round; }
-.edge-glow { stroke-width: 32; stroke-linecap: round; opacity: .22; }
+.edge { stroke-width: 26; stroke-linecap: round; filter: saturate(1.6) brightness(1.12); }
+.edge-glow { stroke-width: 44; stroke-linecap: round; opacity: .28; filter: saturate(1.6); }
 .edge.t0, .edge-glow.t0 { stroke: var(--a); }
 .edge.t1, .edge-glow.t1 { stroke: var(--b); }
 
@@ -1044,7 +1044,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .mletter { font-family: var(--f-display); font-size: 52px; fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
 .mcell.t0 .mletter, .mcell.t1 .mletter { fill: #fff; }
 .mice { font-size: 26px; fill: #3a9fe0; text-anchor: middle; dominant-baseline: central; }
-.medge { stroke-width: 11; stroke-linecap: round; }
+.medge { stroke-width: 22; stroke-linecap: round; filter: saturate(1.5) brightness(1.1); }
 .medge.t0 { stroke: var(--pa); }
 .medge.t1 { stroke: var(--pb); }
 
@@ -1192,6 +1192,3 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 }
 .timer-input span { color: var(--muted); font-weight: 700; }
 
-.q-flag { display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; margin-top: 10px; color: var(--muted); font-size: 14px; }
-.q-flag[hidden] { display: none; }
-.q-flag .link { font-size: 14px; padding: 6px 10px; border-radius: 999px; background: rgba(255, 255, 255, .06); }
