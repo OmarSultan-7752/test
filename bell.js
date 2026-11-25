@@ -11,6 +11,7 @@
   let ctx = null;
   let roomNs = null;       // نتيجة claude.use("room") أو الاتصال المستقل
   let roomTried = false;
+  let hostFailed = false;   // فشل الاتصال عند المقدم (خدمة الجرس العامة)
   let transport = "claude"; // "claude" داخل claude.ai، و"mqtt" لما تنفتح اللعبة مستقلة
 
   const store = {
@@ -138,7 +139,7 @@
     if (warn) warn.hidden = transport === "mqtt";
     const pub = $("#bellPublic");
     if (pub) pub.hidden = transport !== "mqtt";
-    $("#bellNA").hidden = !(roomTried && !roomNs);
+    $("#bellNA").hidden = !((roomTried && !roomNs) || hostFailed);
     $("#bellOff").hidden = host.on || (roomTried && !roomNs);
     $("#bellOn").hidden = !host.on;
     if (!host.on) return;
@@ -330,9 +331,16 @@
   function wire() {
     $("#bellStart").onclick = async () => {
       $("#bellStart").disabled = true;
+      hostFailed = false;
       const ok = await hostStart();
       $("#bellStart").disabled = false;
-      if (!ok) { $("#bellNAText").textContent = transport === "mqtt" ? "ما قدرنا نتصل بخدمة الجرس. تأكد من الإنترنت وجرّب مرة ثانية." : "الجرس يشتغل بس لما تفتح اللعبة من الرابط المنشور وأنت مسجّل دخول."; $("#bellNA").hidden = false; $("#bellOff").hidden = true; }
+      if (!ok) {
+        hostFailed = true;
+        $("#bellNAText").textContent = transport === "mqtt"
+          ? "ما قدرنا نتصل بخدمة الجرس. تأكد من الإنترنت وجرّب مرة ثانية."
+          : "الجرس يشتغل بس لما تفتح اللعبة من الرابط المنشور وأنت مسجّل دخول.";
+        if (transport !== "mqtt") $("#bellOff").hidden = true;
+      }
       renderPanel();
     };
     $("#bellStop").onclick = () => { hostStop(); renderPanel(); };
