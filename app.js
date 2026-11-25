@@ -51,7 +51,7 @@
     }));
     if (out.teams[0].color === out.teams[1].color) out.teams = clone(DEFAULTS.teams);
     if (![4, 5, 6].includes(out.size)) out.size = 5;
-    if (![0, 10, 20, 30, 60].includes(out.timer)) out.timer = 20;
+    if (!Number.isInteger(out.timer) || out.timer < 0 || out.timer > 600) out.timer = 20;
     if (![1, 2, 3].includes(out.target)) out.target = 2;
     if (!["bank", "host"].includes(out.mode)) out.mode = "bank";
     if (!["ruqaa", "kufi", "bold"].includes(out.font)) out.font = "ruqaa";
@@ -80,6 +80,7 @@
     game.frozen = game.frozen || {};
     game.fx = game.fx || { skip: [false, false], timeCut: [false, false], hard: [false, false] };
     game.pendingSab = game.pendingSab || null;
+    game.usedSab = game.usedSab || [[], []];
   }
 
   const saveSettings = () => store.set("settings", settings);
@@ -481,7 +482,7 @@
       owners: Array(settings.size * settings.size).fill(-1),
       turn: 0, score: [0, 0], round: 1,
       history: [], roundOver: false, winPath: [], winner: -1,
-      frozen: {}, fx: newFx(), pendingSab: null,
+      frozen: {}, fx: newFx(), pendingSab: null, usedSab: [[], []],
     };
     q = null; picked = -1;
     renderBoard(true);
@@ -497,7 +498,7 @@
     game.roundOver = false;
     game.winPath = [];
     game.winner = -1;
-    game.frozen = {}; game.fx = newFx(); game.pendingSab = null;
+    game.frozen = {}; game.fx = newFx(); game.pendingSab = null; game.usedSab = [[], []];
     q = null; picked = -1;
     closeModal("winModal");
     renderBoard(true);
@@ -509,7 +510,7 @@
     game.history.push({
       letters: game.letters.slice(), owners: game.owners.slice(), turn: game.turn,
       score: game.score.slice(), roundOver: game.roundOver, winPath: game.winPath.slice(), winner: game.winner,
-      frozen: clone(game.frozen), fx: clone(game.fx),
+      frozen: clone(game.frozen), fx: clone(game.fx), usedSab: clone(game.usedSab),
     });
     if (game.history.length > 120) game.history.shift();
   }
@@ -1066,11 +1067,12 @@
       const b = document.createElement("button");
       b.type = "button";
       b.className = "sab-opt";
-      b.disabled = !s.ok(team);
+      const used = game.usedSab[team].includes(s.id);
+      b.disabled = used || !s.ok(team);
       const ic = document.createElement("span"); ic.className = "sab-ic"; ic.textContent = s.icon;
       const tx = document.createElement("span"); tx.className = "sab-tx";
       const n = document.createElement("b"); n.textContent = s.name;
-      const d = document.createElement("small"); d.textContent = b.disabled ? "ما ينفع الحين" : s.desc;
+      const d = document.createElement("small"); d.textContent = used ? "استخدمتوها (مرة وحدة بس)" : b.disabled ? "ما ينفع الحين" : s.desc;
       tx.append(n, d);
       b.append(ic, tx);
       b.onclick = () => chooseSabotage(s);
@@ -1080,8 +1082,9 @@
     Sound.play("open");
   }
 
-  function endSabotage(msg) {
+  function endSabotage(msg, usedId) {
     const ps = game.pendingSab;
+    if (ps && usedId && !game.usedSab[ps.team].includes(usedId)) game.usedSab[ps.team].push(usedId);
     game.pendingSab = null;
     closeModal("sabModal");
     endTarget();
@@ -1104,9 +1107,9 @@
       paint();
       return;
     }
-    if (s.id === "time") { game.fx.timeCut[opp] = true; Sound.play("buzz"); endSabotage(`⏱ ${nm(team)} قصّروا وقت ${nm(opp)}`); }
-    else if (s.id === "hard") { game.fx.hard[opp] = true; Sound.play("buzz"); endSabotage(`🔥 ${nm(team)} عطوا ${nm(opp)} سؤال صعب`); }
-    else if (s.id === "skip") { game.fx.skip[opp] = true; Sound.play("buzz"); endSabotage(`⛔ ${nm(team)} حرموا ${nm(opp)} من دورهم`); }
+    if (s.id === "time") { game.fx.timeCut[opp] = true; Sound.play("buzz"); endSabotage(`⏱ ${nm(team)} قصّروا وقت ${nm(opp)}`, "time"); }
+    else if (s.id === "hard") { game.fx.hard[opp] = true; Sound.play("buzz"); endSabotage(`🔥 ${nm(team)} عطوا ${nm(opp)} سؤال صعب`, "hard"); }
+    else if (s.id === "skip") { game.fx.skip[opp] = true; Sound.play("buzz"); endSabotage(`⛔ ${nm(team)} حرموا ${nm(opp)} من دورهم`, "skip"); }
   }
 
   function endTarget() {
@@ -1139,13 +1142,13 @@
       const { x, y } = cellCenter(i);
       FX.burst(x, y, ["#ff5a5f", "#f6b93b", "#ffffff", "#ff8c42"], 40);
       Sound.play("boom");
-      endSabotage(`💣 ${nm(team)} فجّروا خلية ${nm(opp)}`);
+      endSabotage(`💣 ${nm(team)} فجّروا خلية ${nm(opp)}`, "bomb");
     } else {
       game.frozen[i] = { by: team, left: 2 };
       const { x, y } = cellCenter(i);
       FX.burst(x, y, ["#bfe9ff", "#8fd3ff", "#ffffff"], 30);
       Sound.play("freeze");
-      endSabotage(`❄️ ${nm(team)} جمّدوا حرفاً على ${nm(opp)}`);
+      endSabotage(`❄️ ${nm(team)} جمّدوا حرفاً على ${nm(opp)}`, "freeze");
     }
   }
 
@@ -1227,7 +1230,7 @@
 
   /* ================= الإعدادات ================= */
   let draft = null;
-  const NUMERIC = ["size", "timer", "target"];
+  const NUMERIC = ["size", "target"];
 
   function openSetup() {
     draft = clone(settings);
@@ -1265,6 +1268,8 @@
       : `${N} خلية — كل حرف مرة وحدة`) + ". الحروف قليلة الأسئلة (مثل ظ) تظهر أقل.";
     const bankCount = Object.values(BANK).reduce((s, a) => s + a.length, 0) + Object.values(HARD).reduce((s, a) => s + a.length, 0);
     $("#bankNote").textContent = `${bankCount} سؤال جاهز` + (custom.length ? ` + ${custom.length} من عندك` : "");
+    const ti = $("#timerInput");
+    if (document.activeElement !== ti) ti.value = String(draft.timer);
     $("#playNote").textContent = draft.play === "turn"
       ? "الفريق اللي دوره يختار حرف ويجاوب. لو ما عرف ينتقل السؤال للفريق الثاني، وبعدها الدور يروح للثاني."
       : "كل فريق يختار حرف بدوره، والسؤال للفريقين، وأول من يجاوب (أو يضغط الجرس من جواله) ياخذ الخلية.";
@@ -1308,6 +1313,18 @@
       Sound.play("tap");
       renderSetup();
     });
+  });
+  // وقت الإجابة: أرقام عربية أو إنجليزية، وفاضي أو 0 = بدون عدّاد
+  $("#timerInput").addEventListener("input", (e) => {
+    const digits = e.target.value
+      .replace(/[\u0660-\u0669]/g, (c) => String(c.charCodeAt(0) - 0x660))
+      .replace(/[\u06F0-\u06F9]/g, (c) => String(c.charCodeAt(0) - 0x6f0))
+      .replace(/\D/g, "")
+      .slice(0, 3);
+    const n = digits === "" ? 0 : Math.min(600, parseInt(digits, 10));
+    if (e.target.value !== digits) e.target.value = digits;
+    if (digits !== "" && String(n) !== digits) e.target.value = String(n);
+    draft.timer = n;
   });
   for (const t of [0, 1]) {
     $("#name" + t).addEventListener("input", (e) => { draft.teams[t].name = e.target.value; });
