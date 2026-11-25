@@ -1577,6 +1577,8 @@
   }
   updateBellBadge();
   const playerOnly = location.hash === "#bell";
+  // أول فتح في الجلسة = نبدأ من شاشة الإعدادات (التحديث وسط اللعب يرجعك للوحة مباشرة)
+  const newSession = (() => { try { return sessionStorage.getItem("haroof3:splash") !== "1"; } catch (_) { return true; } })();
 
   /* ================= شاشة الافتتاح ================= */
   (function splash() {
@@ -1626,7 +1628,11 @@
   })();
   if (game) {
     renderBoard(true);
-    if (game.roundOver && !playerOnly) setTimeout(showWin, 700);
+    if (newSession && !playerOnly) {
+      const hasProgress = !game.roundOver && (game.score[0] || game.score[1] || game.owners.some((o) => o !== -1));
+      game.pendingSab = null;
+      openSetup(!hasProgress);   // فيه لعبة محفوظة؟ يطلع زر «رجوع للعبة»
+    } else if (game.roundOver && !playerOnly) setTimeout(showWin, 700);
     else if (game.pendingSab && !playerOnly) setTimeout(() => { if (game.pendingSab) openSabotage(); }, 700);
   } else {
     newMatch();
