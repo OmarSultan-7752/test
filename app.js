@@ -90,7 +90,22 @@
 
   /* ================= الأصوات ================= */
   const Sound = (() => {
-    let ctx = null, master = null, silentEl = null;
+    let ctx = null, master = null, silentEl = null, alive = null, stateCb = null;
+    // نخلي مسار الصوت صاحي: الايفون ينيّم الصوت لو ما فيه شي، وبعدها الأصوات القصيرة تنبلع.
+    // نشغّل ضجيج خافت جداً (غير مسموع) بشكل مستمر.
+    function keepAlive() {
+      if (alive || !ctx) return;
+      try {
+        const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.003;
+        const src = ctx.createBufferSource();
+        src.buffer = buf; src.loop = true;
+        src.connect(ctx.destination);
+        src.start(0);
+        alive = src;
+      } catch (_) {}
+    }
     // الايفون: زر الصامت يكتم صوت المتصفح، فنخلي الجلسة "تشغيل" ونشغّل مقطع صامت
     function iosAudioFix() {
       try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (_) {}
@@ -121,8 +136,10 @@
           const comp = ctx.createDynamicsCompressor();
           master.connect(comp);
           comp.connect(ctx.destination);
+          ctx.onstatechange = () => { if (ctx.state === "running") keepAlive(); if (stateCb) stateCb(ctx.state); };
         } catch (_) { ctx = null; return null; }
       }
+      if (ctx.state === "running") keepAlive();
       if (ctx.state !== "running") {
         ctx.resume().catch(() => {});
         try { const b = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(0); } catch (_) {}
@@ -130,7 +147,7 @@
       return ctx;
     }
     function note(freq, at = 0, dur = 0.15, type = "sine", vol = 0.25, toFreq = null) {
-      const t0 = ctx.currentTime + at;
+      const t0 = ctx.currentTime + at + 0.03;   // تأخير صغير يغطي صحيان الصوت
       const o = ctx.createOscillator();
       const g = ctx.createGain();
       o.type = type;
@@ -144,7 +161,8 @@
       o.stop(t0 + dur + 0.05);
     }
     const sounds = {
-      tap:     () => note(620, 0, 0.07, "triangle", 0.12),
+      tap:     () => { note(660, 0, 0.12, "triangle", 0.2); note(990, 0.02, 0.09, "sine", 0.08); },
+      test:    () => { [523, 659, 784].forEach((f, i) => note(f, i * 0.16, 0.3, "triangle", 0.3)); },
       open:    () => { note(320, 0, 0.28, "sine", 0.18, 960); note(1280, 0.2, 0.18, "triangle", 0.1); },
       reveal:  () => { note(784, 0, 0.14, "sine", 0.2); note(1175, 0.09, 0.24, "sine", 0.18); },
       tick:    () => note(1050, 0, 0.05, "square", 0.06),
@@ -196,6 +214,8 @@
     return {
       unlock() { init(); iosAudioFix(); },
       running() { return !!(ctx && ctx.state === "running"); },
+      state() { return ctx ? ctx.state : "لم يبدأ"; },
+      onState(cb) { stateCb = cb; },
       play(name) {
         if (!init()) return;
         try { sounds[name] && sounds[name](); } catch (_) {}
@@ -205,6 +225,7 @@
   ["touchend", "pointerup", "click", "keydown"].forEach((ev) =>
     document.addEventListener(ev, () => { if (!Sound.running()) Sound.unlock(); else Sound.unlock(); }, { passive: true })
   );
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") Sound.unlock(); });
   // نقرة خفيفة مع كل زر
   document.addEventListener("click", (e) => {
     const b = e.target && e.target.closest ? e.target.closest("button") : null;
@@ -1488,6 +1509,19 @@
     $("#setup").hidden = true;
     if (Bell) Bell.teamsChanged();
   }
+  function showSoundState() {
+    const st = Sound.state();
+    const ok = st === "running";
+    $("#soundState").textContent = ok
+      ? "✅ الصوت شغّال. إذا ما سمعت: ارفع الصوت وأطفئ زر الصامت."
+      : `⚠️ الصوت ما انفتح بعد (الحالة: ${st}). المس الشاشة ثم جرّب مرة ثانية.`;
+    $("#soundState").dataset.ok = ok ? "1" : "0";
+  }
+  $("#btnSoundTest").onclick = () => {
+    Sound.unlock();
+    setTimeout(() => { Sound.play("test"); showSoundState(); }, 120);
+  };
+  Sound.onState(showSoundState);
   $("#btnStart").onclick = () => {
     Sound.unlock();
     const hasProgress = game && (game.score[0] || game.score[1] || game.owners.some((o) => o !== -1));

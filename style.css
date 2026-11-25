@@ -1418,3 +1418,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .sm-tx { display: flex; flex-direction: column; min-width: 0; }
 .sm-tx b { font-size: 18px; }
 .sm-tx small { color: var(--muted); font-size: 14px; line-height: 1.4; }
+
+.sound-test { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+.sound-test .note { margin: 0; max-width: 34em; text-align: center; }
+#soundState[data-ok="1"] { color: #7fe3ac; }
+#soundState[data-ok="0"] { color: #ffb4b6; }
