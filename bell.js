@@ -182,7 +182,7 @@
   }
 
   /* ================= جهة اللاعب ================= */
-  const pl = { ns: null, off: null, code: "", name: "", team: -1, n: 0, state: null, myPeer: "", pending: 0, waitTimer: 0, failTimer: 0, boardKey: "", noteK: 0, noteTimer: 0, tm: null, tmKey: "", tick: 0, lastMode: "", lastWhole: 0, everHost: false, qt: "", qp: null, qKey: "", shown: -1, mineCnt: -1, oppCnt: -1 };
+  const pl = { ns: null, off: null, code: "", name: "", team: -1, n: 0, state: null, myPeer: "", pending: 0, waitTimer: 0, failTimer: 0, boardKey: "", noteK: 0, noteTimer: 0, tm: null, tmKey: "", tick: 0, lastMode: "", lastWhole: 0, everHost: false, sbKey: "", qt: "", qp: null, qKey: "", shown: -1, mineCnt: -1, oppCnt: -1 };
 
   function plShow(which) {
     ["plConnect", "plTeam", "plBuzz"].forEach((id) => { $("#" + id).hidden = id !== which; });
@@ -342,6 +342,9 @@
       showSab(full);
     }
 
+    // قائمة التخريب: تظهر للجميع عشان يعرفون الخيارات بدون ما المقدم يقرأها
+    renderSabMenu(s, teams, mine);
+
     const banned = Array.isArray(s.banned) ? s.banned : [];
     const winner = s.winner && typeof s.winner === "object" ? s.winner : null;
     const btn = $("#plBtn"), txt = $("#plBtnText"), st = $("#plStatus");
@@ -393,6 +396,34 @@
     const len = pl.qt.length;
     const shown = !t ? len : t.run ? Math.min(len, t.n + Math.floor((Date.now() - t.at) / t.ms)) : Math.min(len, t.n);
     if (shown !== pl.shown) { pl.shown = shown; $("#plQText").textContent = pl.qt.slice(0, shown); }
+  }
+
+  function renderSabMenu(s, teams, mine) {
+    const box = $("#plSabMenu");
+    const sb = s.sb && typeof s.sb === "object" && Array.isArray(s.sb.o) ? s.sb : null;
+    if (!sb) { box.hidden = true; pl.sbKey = ""; return; }
+    const key = JSON.stringify(sb) + "|" + mine;
+    if (key === pl.sbKey) return;
+    const first = box.hidden;
+    pl.sbKey = key;
+    const t = sb.team === 0 || sb.team === 1 ? sb.team : 0;
+    $("#plSabTitle").textContent = `🎯 ${clean(teams[t].n, 22)} ياخذون تخريب على ${clean(teams[1 - t].n, 22)}`;
+    $("#plSabSub").textContent = sb.t
+      ? clean(sb.t, 80)
+      : t === mine ? "اختاروا واحد وقولوا للمقدم" : "المقدم ينفّذ اختيارهم… انتظروا";
+    const list = $("#plSabList");
+    list.innerHTML = "";
+    sb.o.slice(0, 8).forEach((o) => {
+      const row = document.createElement("div");
+      row.className = "sm-row" + (o[3] ? " off" : "");
+      const ic = document.createElement("span"); ic.className = "sm-ic"; ic.textContent = clean(o[0], 4);
+      const tx = document.createElement("span"); tx.className = "sm-tx";
+      const b = document.createElement("b"); b.textContent = clean(o[1], 24);
+      const sm = document.createElement("small"); sm.textContent = clean(o[2], 60);
+      tx.append(b, sm); row.append(ic, tx); list.append(row);
+    });
+    box.hidden = false;
+    if (first) { if (ctx.sound) ctx.sound("open"); try { navigator.vibrate && navigator.vibrate(60); } catch (_) {} }
   }
 
   // إعلان التخريب بشاشة كاملة عشان الكل يعرف

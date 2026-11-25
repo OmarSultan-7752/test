@@ -1308,6 +1308,19 @@
         const ts = Timer.state();
         return q && q.phase === "live" && ts.total > 0 && !ts.waiting ? [Math.round(ts.left * 10) / 10, ts.total, ts.running ? 1 : 0] : null;
       })(),
+      sb: (() => {
+        const ps = game.pendingSab;
+        if (!ps) return null;
+        return {
+          team: ps.team,
+          t: targetMode ? (targetMode.kind === "bomb" ? "💣 المقدم يختار الخلية اللي تنفجر…" : "❄️ المقدم يختار الحرف اللي يتجمّد…") : "",
+          o: SABS.map((sb) => {
+            const used = game.usedSab[ps.team].includes(sb.id);
+            const ok = !used && sb.ok(ps.team);
+            return [sb.icon, sb.name, used ? "استخدمتوها قبل" : ok ? sb.desc : "ما ينفع الحين", ok ? 0 : 1];
+          }),
+        };
+      })(),
       qp: (() => { const ty = Typer.state(); return ty.active ? [ty.n, ty.running ? 1 : 0, Typer.CHAR_MS] : null; })(),
       fx: { sk: game.fx.skip, tc: game.fx.timeCut, hd: game.fx.hard },
       fb: Object.keys(game.frozen).map((k) => game.frozen[k].by),
