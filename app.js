@@ -1525,7 +1525,7 @@
   $("#btnStart").onclick = () => {
     Sound.unlock();
     const hasProgress = game && (game.score[0] || game.score[1] || game.owners.some((o) => o !== -1));
-    const go = () => { commitDraft(); newMatch(); Sound.play("start"); };
+    const go = () => { commitDraft(); newMatch(); Sound.play("shuffle"); };
     if (!setupFresh && hasProgress) {
       askConfirm("ننهي اللعبة الحالية؟", "اللوحة والنتيجة تنمسح، وتبدأ مباراة جديدة بالإعدادات هذي.", "إي، أنهِ وابدأ", go);
     } else go();
