@@ -646,7 +646,7 @@
   }
   $("#winPrimary").onclick = continueAfterWin;
   $("#winSecondary").onclick = () => { closeModal("winModal"); updateHud(); };
-  $("#winSettings").onclick = () => { closeModal("winModal"); openSetup(); };
+  $("#winSettings").onclick = () => { closeModal("winModal"); openSetup(true); };
 
   /* ---- الدور ---- */
   // الفرق اللي خلّص دوره: نذوّب التجميد اللي عليه
@@ -1242,10 +1242,18 @@
   let draft = null;
   const NUMERIC = ["size", "target"];
 
-  function openSetup() {
+  let setupFresh = true;   // true = ما فيه لعبة شغالة (أول مرة أو بعد الإنهاء)
+  function openSetup(fresh) {
+    setupFresh = !!fresh;
     draft = clone(settings);
     renderSetup();
-    $("#btnResume").hidden = !game;
+    const inGame = !setupFresh && !!game;
+    $("#btnResume").hidden = !inGame;
+    $("#btnBack").hidden = !inGame;
+    $("#setupTop").hidden = !inGame;
+    const st = $("#btnStart");
+    st.textContent = inGame ? "إنهاء اللعبة وبدء مباراة جديدة" : "ابدأ مباراة جديدة";
+    st.classList.toggle("danger", inGame);
     $("#setup").hidden = false;
     $("#setup").scrollTop = 0;
   }
@@ -1273,7 +1281,8 @@
       $$("button", seg).forEach((b) => b.classList.toggle("on", String(draft[key]) === b.dataset.v));
     });
     const N = draft.size * draft.size;
-    $("#sizeNote").textContent = (N > LETTERS.length
+    const resizing = !setupFresh && game && draft.size !== game.size;
+    $("#sizeNote").textContent = (resizing ? "⚠️ تغيير الحجم يبدأ جولة جديدة (النتيجة تبقى). " : "") + (N > LETTERS.length
       ? `${N} خلية — بعض الحروف تتكرر`
       : `${N} خلية — كل حرف مرة وحدة`) + ". الحروف قليلة الأسئلة (مثل ظ) تظهر أقل.";
     const bankCount = Object.values(BANK).reduce((s, a) => s + a.length, 0) + Object.values(HARD).reduce((s, a) => s + a.length, 0);
@@ -1352,10 +1361,13 @@
   }
   $("#btnStart").onclick = () => {
     Sound.unlock();
-    commitDraft();
-    newMatch();
-    Sound.play("shuffle");
+    const hasProgress = game && (game.score[0] || game.score[1] || game.owners.some((o) => o !== -1));
+    const go = () => { commitDraft(); newMatch(); Sound.play("shuffle"); };
+    if (!setupFresh && hasProgress) {
+      askConfirm("ننهي اللعبة الحالية؟", "اللوحة والنتيجة تنمسح، وتبدأ مباراة جديدة بالإعدادات هذي.", "إي، أنهِ وابدأ", go);
+    } else go();
   };
+  $("#btnBack").onclick = () => $("#btnResume").click();
   $("#btnResume").onclick = () => {
     const sizeChanged = draft.size !== game.size;
     commitDraft();
@@ -1467,7 +1479,11 @@
   $("#btnUndo").onclick = undo;
   $("#btnClear").onclick = clearBoard;
   $("#btnShuffle").onclick = reshuffle;
-  $("#btnSettings").onclick = () => { if (!anyModalOpen() && !targetMode) openSetup(); };
+  $("#btnSettings").onclick = () => { if (!anyModalOpen() && !targetMode) openSetup(false); };
+  $("#btnEnd").onclick = () => {
+    if (anyModalOpen() || targetMode) return;
+    askConfirm("ننهي اللعبة؟", "اللوحة والنتيجة تنمسح وترجعون لشاشة الإعدادات.", "إي، أنهِ اللعبة", () => { newMatch(); openSetup(true); });
+  };
   $("#btnBell").onclick = () => { if (Bell && !anyModalOpen() && !targetMode) Bell.openPanel(); };
   $("#btnPlayerMode").onclick = () => { if (Bell) Bell.openPlayer(); };
   $("#btnHelp").onclick = () => { if (!anyModalOpen() && !targetMode) openModal("helpModal"); };
@@ -1605,6 +1621,6 @@
     else if (game.pendingSab && !playerOnly) setTimeout(() => { if (game.pendingSab) openSabotage(); }, 700);
   } else {
     newMatch();
-    if (!playerOnly) openSetup();
+    if (!playerOnly) openSetup(true);
   }
 })();
