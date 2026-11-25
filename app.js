@@ -90,7 +90,26 @@
 
   /* ================= الأصوات ================= */
   const Sound = (() => {
-    let ctx = null, master = null;
+    let ctx = null, master = null, silentEl = null;
+    // الايفون: زر الصامت يكتم صوت المتصفح، فنخلي الجلسة "تشغيل" ونشغّل مقطع صامت
+    function iosAudioFix() {
+      try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (_) {}
+      if (silentEl) return;
+      try {
+        const n = 4000, bytes = new Uint8Array(44 + n);
+        const dv = new DataView(bytes.buffer);
+        const w = (o, str) => { for (let i = 0; i < str.length; i++) bytes[o + i] = str.charCodeAt(i); };
+        w(0, "RIFF"); dv.setUint32(4, 36 + n, true); w(8, "WAVEfmt "); dv.setUint32(16, 16, true);
+        dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, 8000, true); dv.setUint32(28, 8000, true);
+        dv.setUint16(32, 1, true); dv.setUint16(34, 8, true); w(36, "data"); dv.setUint32(40, n, true);
+        bytes.fill(128, 44);
+        silentEl = new Audio(URL.createObjectURL(new Blob([bytes], { type: "audio/wav" })));
+        silentEl.loop = true;
+        silentEl.volume = 0.01;
+        silentEl.setAttribute("playsinline", "");
+        silentEl.play().catch(() => {});
+      } catch (_) { silentEl = null; }
+    }
     function init() {
       if (!ctx) {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -98,11 +117,16 @@
         try {
           ctx = new AC();
           master = ctx.createGain();
-          master.gain.value = 0.55;
-          master.connect(ctx.destination);
+          master.gain.value = 0.95;
+          const comp = ctx.createDynamicsCompressor();
+          master.connect(comp);
+          comp.connect(ctx.destination);
         } catch (_) { ctx = null; return null; }
       }
-      if (ctx.state === "suspended") ctx.resume().catch(() => {});
+      if (ctx.state !== "running") {
+        ctx.resume().catch(() => {});
+        try { const b = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(0); } catch (_) {}
+      }
       return ctx;
     }
     function note(freq, at = 0, dur = 0.15, type = "sine", vol = 0.25, toFreq = null) {
@@ -138,6 +162,9 @@
         [659, 831, 988, 1319].forEach((f) => note(f, 1.05, 1.1, "triangle", 0.16));
         [2093, 2637, 3136].forEach((f, i) => note(f, 1.1 + i * 0.07, 0.4, "sine", 0.05));
       },
+      cell:    () => note(420 + Math.random() * 380, 0, 0.1, "triangle", 0.2, 900),
+      type:    () => note(1700 + Math.random() * 500, 0, 0.03, "square", 0.04),
+      turn:    () => { note(523, 0, 0.1, "triangle", 0.16); note(784, 0.09, 0.18, "triangle", 0.16); },
       buzz:    () => { note(880, 0, 0.18, "square", 0.16); note(660, 0.1, 0.35, "square", 0.16); },
       shuffle: () => { for (let i = 0; i < 6; i++) note(500 + i * 120, i * 0.04, 0.06, "triangle", 0.08); },
       win:     () => {
@@ -146,7 +173,7 @@
       },
     };
     return {
-      unlock() { init(); },
+      unlock() { init(); iosAudioFix(); },
       running() { return !!(ctx && ctx.state === "running"); },
       play(name) {
         if (!init()) return;
@@ -154,7 +181,15 @@
       },
     };
   })();
-  document.addEventListener("pointerdown", () => Sound.unlock(), { once: true });
+  ["touchend", "pointerup", "click", "keydown"].forEach((ev) =>
+    document.addEventListener(ev, () => { if (!Sound.running()) Sound.unlock(); else Sound.unlock(); }, { passive: true })
+  );
+  // نقرة خفيفة مع كل زر
+  document.addEventListener("click", (e) => {
+    const b = e.target && e.target.closest ? e.target.closest("button") : null;
+    if (!b || b.disabled || b.closest(".pad-btn, .buzz-btn, #splash")) return;
+    Sound.play("tap");
+  }, true);
 
   /* ================= المؤثرات (قصاصات) ================= */
   const FX = (() => {
@@ -661,10 +696,11 @@
     if (game.fx.skip[opp]) {
       game.fx.skip[opp] = false;
       game.turn = starter;
-      toast(`⛔ ضاع دور ${nm(opp)}، يعيد ${nm(starter)}`, 3400, true);
+      toast(`⛔ ضاع دور ${nm(opp)}، يعيد ${nm(starter)}`, 3400);
     } else {
       game.turn = opp;
     }
+    Sound.play("turn");
     paint();
     saveGame();
   }
@@ -675,6 +711,7 @@
     if (targetMode) { pickTarget(i); return; }
     if (anyModalOpen()) return;
     if (game.roundOver) { showWin(); return; }
+    Sound.play("cell");
     if (game.owners[i] !== -1) { openEdit(i); return; }
     openQuestion(i);
   }
@@ -760,6 +797,36 @@
     queueSync();
   }
 
+  /* كتابة السؤال حرف حرف في طريقة الجرس: توقف أول ما أحد يضغط الجرس */
+  const Typer = (() => {
+    const CHAR_MS = 50;
+    let text = "", n = 0, timer = 0, active = false;
+    const paintTxt = () => { const t = text.slice(0, n); $("#qBody").textContent = t; const pq = $("#padQ"); if (pq) pq.textContent = t; };
+    return {
+      CHAR_MS,
+      start(t) {
+        this.clear();
+        text = t; n = 0; active = true;
+        paintTxt();
+        this.resume();
+      },
+      resume() {
+        if (!active || timer || n >= text.length) { queueSync(); return; }
+        timer = setInterval(() => {
+          n++;
+          paintTxt();
+          if (n % 3 === 0) Sound.play("type");
+          if (n >= text.length) { clearInterval(timer); timer = 0; queueSync(); }
+        }, CHAR_MS);
+        queueSync();
+      },
+      pause() { clearInterval(timer); timer = 0; queueSync(); },
+      finish() { clearInterval(timer); timer = 0; n = text.length; paintTxt(); queueSync(); },
+      clear() { clearInterval(timer); timer = 0; text = ""; n = 0; active = false; const pq = $("#padQ"); if (pq) pq.textContent = ""; },
+      state() { return { active, n, len: text.length, running: !!timer }; },
+    };
+  })();
+
   function loadQuestion(level) {
     const box = $("#answerBox");
     box.classList.remove("shown");
@@ -767,12 +834,13 @@
     q.item = item;
     if (item) {
       $("#qMark").hidden = false;
-      $("#qBody").textContent = item.q;
+      if (settings.play === "race") { Typer.start(item.q); } else { Typer.clear(); $("#qBody").textContent = item.q; }
       $("#qAnswer").textContent = item.a;
       box.hidden = false;
       $("#btnAnother").hidden = poolFor(q.L, level).length < 2;
     } else {
       $("#qMark").hidden = true;
+      Typer.clear();
       $("#qBody").textContent = settings.mode === "bank"
         ? "ما فيه أسئلة لهذا الحرف، اسألهم سؤال من عندك."
         : "المقدم يسأل: سؤال إجابته تبدأ بهذا الحرف.";
@@ -805,7 +873,7 @@
     $("#turnStatus").textContent = qStatusLine();
     $("#turnStatus").dataset.t = String(q.asked);
     $("#qKeys").textContent = settings.play === "turn" ? "1 = صح · 2 = ما عرفوا · مسافة = الإجابة" : "1 · 2 = الفريق · 0 = ما أحد · مسافة = الإجابة";
-    Timer.start(sec);
+    if (settings.play === "race") Timer.arm(sec); else Timer.start(sec);
     Sound.play("open");
     if (Bell && settings.play === "race") { Bell.questionOpened(q.L); buzzUI(Bell.isOn() ? "armed" : "off"); }
     else buzzUI("off");
@@ -815,6 +883,7 @@
 
   function stopQuestion() {
     closePad();
+    Typer.clear();
     Timer.stop();
     closeModal("qModal");
     if (Bell) Bell.questionClosed();
@@ -893,9 +962,15 @@
     if (!Bell || buzzTeam < 0) return;
     const r = Bell.rearm(buzzTeam);
     Sound.play("wrong");
-    Timer.resume();
+    Timer.arm(q ? q.sec : 0);
+    if (r.armed) Typer.resume();
     buzzUI(r.armed ? "armed" : "none");
   };
+  // أول ضغطة جرس: نوقف الكتابة ونبدأ وقت الإجابة
+  function raceBuzzStarted() {
+    Typer.pause();
+    if (q && q.sec) Timer.start(q.sec);
+  }
   function updateBellBadge() {
     const b = $("#bellBadge");
     if (!Bell) { $("#btnBell").hidden = true; return; }
@@ -947,7 +1022,7 @@
   function padTap(team) {
     if (!pad.on || pad.winner >= 0 || pad.banned.includes(team) || !q || q.phase !== "live") return;
     pad.winner = team;
-    Timer.pause();
+    raceBuzzStarted();
     Sound.play("buzz");
     try { navigator.vibrate && navigator.vibrate(80); } catch (_) {}
     renderPad();
@@ -962,7 +1037,8 @@
     pad.banned.push(pad.winner);
     pad.winner = -1;
     Sound.play("wrong");
-    Timer.resume();
+    Timer.arm(q ? q.sec : 0);
+    if (pad.banned.length < 2) Typer.resume();
     renderPad();
   };
   $("#padNone").onclick = () => { closePad(); finishQuestion(-1); };
@@ -979,11 +1055,11 @@
     const ring = $("#timerRing"), txt = $("#timerText"), sheet = $("#qSheet");
     const C = 2 * Math.PI * 46;
     ring.style.strokeDasharray = C.toFixed(2);
-    let total = 0, left = 0, raf = 0, last = 0, running = false, lastWhole = 0;
+    let total = 0, left = 0, raf = 0, last = 0, running = false, lastWhole = 0, waiting = false;
     function draw() {
       const frac = total ? Math.max(0, left / total) : 1;
       ring.style.strokeDashoffset = (C * (1 - frac)).toFixed(2);
-      txt.textContent = !total ? "" : left > 0 ? Math.ceil(left) : "انتهى الوقت";
+      txt.textContent = !total || waiting ? "" : left > 0 ? Math.ceil(left) : "انتهى الوقت";
       sheet.classList.toggle("low", !!total && left > 0 && left <= 5);
       sheet.classList.toggle("done", !!total && left <= 0);
     }
@@ -1000,22 +1076,32 @@
     function run() { running = true; sheet.classList.remove("paused"); last = performance.now(); raf = requestAnimationFrame(loop); }
     return {
       // مرحلة التحضير: الحلقة كاملة بدون عدّاد
-      reset() { this.stop(); total = 0; left = 0; sheet.classList.add("no-timer"); sheet.classList.remove("paused", "low", "done"); draw(); ring.style.strokeDashoffset = "0"; },
+      // جاهز بس ما بدأ: ينتظر أول ضغطة جرس
+      arm(sec) {
+        this.stop();
+        total = sec; left = sec; waiting = true; lastWhole = Math.ceil(sec);
+        sheet.classList.toggle("no-timer", !sec);
+        sheet.classList.add("waiting");
+        sheet.classList.remove("paused", "low", "done");
+        draw();
+        queueSync();
+      },
+      reset() { this.stop(); waiting = false; sheet.classList.remove("waiting"); total = 0; left = 0; sheet.classList.add("no-timer"); sheet.classList.remove("paused", "low", "done"); draw(); ring.style.strokeDashoffset = "0"; },
       start(sec) {
         this.stop();
-        total = sec; left = sec; lastWhole = Math.ceil(sec);
+        total = sec; left = sec; lastWhole = Math.ceil(sec); waiting = false;
         sheet.classList.toggle("no-timer", !sec);
-        sheet.classList.remove("paused");
+        sheet.classList.remove("paused", "waiting");
         draw();
         if (sec > 0) run();
         queueSync();
       },
       stop() { running = false; cancelAnimationFrame(raf); queueSync(); },
       pause() { if (running) { this.stop(); sheet.classList.add("paused"); } },
-      resume() { if (total && left > 0 && !running) { run(); queueSync(); } },
-      state() { return { total, left, running }; },
+      resume() { if (!waiting && total && left > 0 && !running) { run(); queueSync(); } },
+      state() { return { total, left, running, waiting }; },
       toggle() {
-        if (!total) return;
+        if (!total || waiting) return;
         if (left <= 0) { this.start(total); return; }
         if (running) { this.stop(); sheet.classList.add("paused"); } else { run(); queueSync(); }
         Sound.play("tap");
@@ -1046,7 +1132,7 @@
     $("#turnStatus").textContent = qStatusLine();
     $("#turnStatus").dataset.t = String(q.asked);
     Sound.play("tap");
-    Timer.start(q.sec);
+    if (settings.play === "race") Timer.arm(q.sec); else Timer.start(q.sec);
     if (Bell && settings.play === "race" && Bell.isOn()) { Bell.questionOpened(q.L); buzzUI("armed"); }
     queueSync();
   };
@@ -1199,8 +1285,9 @@
       sc: game.score,
       tm: (() => {
         const ts = Timer.state();
-        return q && q.phase === "live" && ts.total > 0 ? [Math.round(ts.left * 10) / 10, ts.total, ts.running ? 1 : 0] : null;
+        return q && q.phase === "live" && ts.total > 0 && !ts.waiting ? [Math.round(ts.left * 10) / 10, ts.total, ts.running ? 1 : 0] : null;
       })(),
+      qp: (() => { const ty = Typer.state(); return ty.active ? [ty.n, ty.running ? 1 : 0, Typer.CHAR_MS] : null; })(),
       fx: { sk: game.fx.skip, tc: game.fx.timeCut, hd: game.fx.hard },
       fb: Object.keys(game.frozen).map((k) => game.frozen[k].by),
     };
@@ -1564,7 +1651,7 @@
       sound: (n) => Sound.play(n),
       onBuzz: (info) => {
         if ($("#qModal").hidden || !q || q.phase !== "live") return;
-        Timer.pause();
+        raceBuzzStarted();
         Sound.play("buzz");
         buzzUI("locked", info);
       },
@@ -1621,7 +1708,7 @@
     // لو المتصفح يسمح بالصوت نبدأ مباشرة، وإلا ننتظر أول لمسة
     Sound.unlock();
     setTimeout(() => { if (Sound.running()) start(); }, 150);
-    sp.addEventListener("pointerdown", () => {
+    sp.addEventListener("click", () => {
       if (!started) start();
       else if (Date.now() - t0 > 1400) end();
     });

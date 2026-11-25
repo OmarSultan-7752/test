@@ -182,7 +182,7 @@
   }
 
   /* ================= جهة اللاعب ================= */
-  const pl = { ns: null, off: null, code: "", name: "", team: -1, n: 0, state: null, myPeer: "", pending: 0, waitTimer: 0, failTimer: 0, boardKey: "", noteK: 0, noteTimer: 0, tm: null, tmKey: "", tick: 0, lastMode: "", lastWhole: 0, everHost: false };
+  const pl = { ns: null, off: null, code: "", name: "", team: -1, n: 0, state: null, myPeer: "", pending: 0, waitTimer: 0, failTimer: 0, boardKey: "", noteK: 0, noteTimer: 0, tm: null, tmKey: "", tick: 0, lastMode: "", lastWhole: 0, everHost: false, qt: "", qp: null, qKey: "", shown: -1, mineCnt: -1, oppCnt: -1 };
 
   function plShow(which) {
     ["plConnect", "plTeam", "plBuzz"].forEach((id) => { $("#" + id).hidden = id !== which; });
@@ -302,25 +302,44 @@
 
     // اللوحة الحية
     const key = [s.n, s.l, s.o, JSON.stringify(s.fz || []), s.pk].join("|");
-    if (key !== pl.boardKey && ctx.drawMini) { pl.boardKey = key; ctx.drawMini($("#plBoard"), s); }
+    if (key !== pl.boardKey && ctx.drawMini) {
+      pl.boardKey = key; ctx.drawMini($("#plBoard"), s);
+      const mc = (s.o.match(mine === 0 ? /a/g : /b/g) || []).length, oc = (s.o.match(mine === 0 ? /b/g : /a/g) || []).length;
+      if (pl.mineCnt >= 0 && ctx.sound) {
+        if (mc > pl.mineCnt) ctx.sound("correct");
+        else if (oc > pl.oppCnt) ctx.sound("wrong");
+      }
+      pl.mineCnt = mc; pl.oppCnt = oc;
+    }
 
     // السؤال
     const qBox = $("#plQ");
-    if (s.ph === "live" && s.qt) { qBox.hidden = false; $("#plLetter").textContent = s.ql || ""; $("#plQText").textContent = clean(s.qt, 200); }
-    else if (s.ph === "prep") { qBox.hidden = false; $("#plLetter").textContent = s.ql || ""; $("#plQText").textContent = "جاهزين… السؤال جاي"; }
-    else if (s.ph === "live") { qBox.hidden = false; $("#plLetter").textContent = s.ql || ""; $("#plQText").textContent = "المقدم يسأل بصوته"; }
-    else qBox.hidden = true;
+    if (s.ph === "live" && s.qt) {
+      qBox.hidden = false; $("#plLetter").textContent = s.ql || "";
+      const qKey = JSON.stringify([s.qt, s.qp]);
+      if (qKey !== pl.qKey) {
+        pl.qKey = qKey;
+        pl.qt = clean(s.qt, 200);
+        pl.qp = Array.isArray(s.qp) ? { n: +s.qp[0] || 0, run: !!s.qp[1], ms: +s.qp[2] || 50, at: Date.now() } : null;
+        pl.shown = -1;
+      }
+      tickTyping();
+    }
+    else if (s.ph === "prep") { pl.qt = ""; pl.qKey = ""; qBox.hidden = false; $("#plLetter").textContent = s.ql || ""; $("#plQText").textContent = "جاهزين… السؤال جاي"; }
+    else if (s.ph === "live") { pl.qt = ""; pl.qKey = ""; qBox.hidden = false; $("#plLetter").textContent = s.ql || ""; $("#plQText").textContent = "المقدم يسأل بصوته"; }
+    else { pl.qt = ""; pl.qKey = ""; qBox.hidden = true; }
 
     // ملاحظات التخريب
     if (s.nt && s.nt.k && s.nt.k !== pl.noteK) {
       pl.noteK = s.nt.k;
+      const full = clean(s.nt.t, 90);
       const n = $("#plNote");
-      n.textContent = clean(s.nt.t, 90);
+      n.textContent = full;
       n.hidden = false;
       n.classList.remove("show"); void n.offsetWidth; n.classList.add("show");
       clearTimeout(pl.noteTimer);
-      pl.noteTimer = setTimeout(() => { n.hidden = true; }, 9000);
-      try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch (_) {}
+      pl.noteTimer = setTimeout(() => { n.hidden = true; }, 12000);
+      showSab(full);
     }
 
     const banned = Array.isArray(s.banned) ? s.banned : [];
@@ -367,13 +386,39 @@
       if (left <= 0) { try { navigator.vibrate && navigator.vibrate(200); } catch (_) {} }
     }
   }
+  // كتابة السؤال عند اللاعب: نكمل محلياً من آخر حالة وصلتنا من المقدم
+  function tickTyping() {
+    if (!pl.qt) return;
+    const t = pl.qp;
+    const len = pl.qt.length;
+    const shown = !t ? len : t.run ? Math.min(len, t.n + Math.floor((Date.now() - t.at) / t.ms)) : Math.min(len, t.n);
+    if (shown !== pl.shown) { pl.shown = shown; $("#plQText").textContent = pl.qt.slice(0, shown); }
+  }
+
+  // إعلان التخريب بشاشة كاملة عشان الكل يعرف
+  function showSab(text) {
+    const box = $("#plSab");
+    if (!box) return;
+    const parts = text.split(" ");
+    const icon = parts[0] || "🎯";
+    $("#plSabIc").textContent = icon;
+    $("#plSabTx").textContent = parts.slice(1).join(" ");
+    box.hidden = false;
+    box.classList.remove("show"); void box.offsetWidth; box.classList.add("show");
+    if (ctx.sound) ctx.sound(icon.startsWith("💣") ? "boom" : icon.startsWith("❄") ? "freeze" : "buzz");
+    try { navigator.vibrate && navigator.vibrate([80, 50, 80, 50, 160]); } catch (_) {}
+    clearTimeout(pl.sabTimer);
+    pl.sabTimer = setTimeout(() => { box.hidden = true; }, 4500);
+  }
+
   function startPlayerTick() {
     clearInterval(pl.tick);
+    let n = 0;
     pl.tick = setInterval(() => {
       if (!pl.ns) return;
-      if (pl.state) tickTimer();
-      if (pl.ns.connected && !pl.ns.connected()) $("#plConn").textContent = "🟠 يعيد الاتصال…";
-    }, 250);
+      if (pl.state) { tickTimer(); tickTyping(); }
+      if (++n % 4 === 0 && pl.ns.connected && !pl.ns.connected()) $("#plConn").textContent = "🟠 يعيد الاتصال…";
+    }, 70);
   }
 
   function plBuzz() {
@@ -382,6 +427,7 @@
     pl.n++;
     pl.pending = Date.now();
     quiet(pl.ns.presence({ buzz: { seq: s.seq, n: pl.n } }));
+    if (ctx.sound) ctx.sound("buzz");
     try { navigator.vibrate && navigator.vibrate(60); } catch (_) {}
     plRender();
     setTimeout(plRender, 1600);   // لو ضاع الضغط يرجع الزر
