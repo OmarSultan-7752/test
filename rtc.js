@@ -18,7 +18,7 @@
   const STALE = 120000;          // أي جهاز ما سمعنا منه 2 دقيقة نعتبره طلع
   const myId = Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join("");
 
-  function connectTo(url, willTopic) {
+  function connectTo(url, willTopic, timeoutMs) {
     return new Promise((resolve, reject) => {
       let done = false;
       const c = window.mqtt.connect(url, {
@@ -26,29 +26,50 @@
         clean: true,
         keepalive: 30,
         reconnectPeriod: 2000,
-        connectTimeout: 7000,
+        connectTimeout: timeoutMs || 8000,
         will: { topic: willTopic, payload: "", qos: 0, retain: true },
       });
       const fail = (e) => { if (done) return; done = true; try { c.end(true); } catch (_) {} reject(e || new Error("connect failed")); };
-      const t = setTimeout(() => fail(new Error("timeout")), 8000);
+      const t = setTimeout(() => fail(new Error("timeout")), (timeoutMs || 8000) + 500);
       c.once("connect", () => { if (done) return; done = true; clearTimeout(t); resolve(c); });
       c.once("error", (e) => { clearTimeout(t); fail(e); });
     });
   }
 
-  async function connectAny(willTopic) {
-    let last = null;
-    for (const url of BROKERS) {
-      try { return await connectTo(url, willTopic); } catch (e) { last = e; }
+  /* اللاعب يتصل مباشرة بالسيرفر اللي يحدده الرمز (أول رقم)، بدون تجربة واحد واحد.
+     المقدم يجرب كل السيرفرات بالتوازي (المفضّل أولاً) ويأخذ أسرع واحد،
+     وبعدها الرمز يحمل رقم السيرفر عشان الكل يلتقي في نفس المكان. */
+  async function connectAny(willTopic, opts) {
+    const n = BROKERS.length;
+    const inRange = (i) => Number.isInteger(i) && i >= 0 && i < n;
+    if (opts && inRange(opts.broker)) {
+      return { c: await connectTo(BROKERS[opts.broker], willTopic, 12000), idx: opts.broker };
     }
-    throw last || new Error("no broker");
+    const order = [...Array(n).keys()];
+    if (opts && inRange(opts.prefer)) { order.splice(order.indexOf(opts.prefer), 1); order.unshift(opts.prefer); }
+    return new Promise((resolve, reject) => {
+      let won = false, finished = 0;
+      order.forEach((idx, k) => {
+        setTimeout(() => {
+          if (won) { finished++; return; }
+          connectTo(BROKERS[idx], willTopic, 7000).then((c) => {
+            if (won) { try { c.end(true); } catch (_) {} return; }
+            won = true;
+            resolve({ c, idx });
+          }).catch(() => {
+            finished++;
+            if (finished >= n && !won) reject(new Error("no broker"));
+          });
+        }, k === 0 ? 0 : 1200 * k);
+      });
+    });
   }
 
-  async function join(name) {
+  async function join(name, opts) {
     if (!/^[a-z0-9][a-z0-9_.-]{0,47}$/.test(name)) throw new Error("bad room name");
     const base = `${ROOT}/${name}/p/`;
     const myTopic = base + myId;
-    const client = await connectAny(myTopic);
+    const { c: client, idx: brokerIdx } = await connectAny(myTopic, opts);
 
     const peers = new Map();            // id → { presence, updatedAt, t }
     const handlers = new Set();
@@ -127,6 +148,7 @@
     return {
       name,
       transport: "mqtt",
+      broker: brokerIdx,
       presence(patch) {
         for (const k in patch) { if (patch[k] === null) delete mine[k]; else mine[k] = patch[k]; }
         if (JSON.stringify(mine).length > 3800) return Promise.reject(new Error("presence too large"));
@@ -156,5 +178,5 @@
     };
   }
 
-  window.HaroofRTC = { join, transport: "mqtt" };
+  window.HaroofRTC = { join, transport: "mqtt", brokers: BROKERS.length };
 })();

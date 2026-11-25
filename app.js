@@ -580,14 +580,14 @@
 
   /* ---- التنبيهات السريعة ---- */
   let toastTimer = 0;
-  function toast(msg, ms = 2600) {
+  function toast(msg, ms = 2600, share = false) {
     const t = $("#toast");
     t.textContent = msg;
     t.hidden = false;
     t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { t.hidden = true; }, ms);
-    note(msg);
+    if (share) note(msg);
   }
 
   /* ---- تغيير مالك الخلية (ما يغيّر الدور) ---- */
@@ -661,7 +661,7 @@
     if (game.fx.skip[opp]) {
       game.fx.skip[opp] = false;
       game.turn = starter;
-      toast(`⛔ ضاع دور ${nm(opp)}، يعيد ${nm(starter)}`);
+      toast(`⛔ ضاع دور ${nm(opp)}، يعيد ${nm(starter)}`, 3400, true);
     } else {
       game.turn = opp;
     }
@@ -787,13 +787,13 @@
     const sheet = $("#qSheet");
     sheet.dataset.phase = "live";
     const useHard = game.fx.hard[q.starter];
-    if (useHard) { game.fx.hard[q.starter] = false; toast("🔥 سؤال صعب! (تخريب من الخصم)"); }
+    if (useHard) { game.fx.hard[q.starter] = false; toast("🔥 سؤال صعب! (تخريب من الخصم)", 3400, true); }
     q.level = useHard ? "hard" : settings.level;
     loadQuestion(q.level);
     let sec = settings.timer;
     if (game.fx.timeCut[q.starter]) {
       game.fx.timeCut[q.starter] = false;
-      if (sec) { sec = Math.max(5, Math.round(sec / 2)); toast(`⏱ وقتكم صار ${sec} ثانية (تخريب من الخصم)`); }
+      if (sec) { sec = Math.max(5, Math.round(sec / 2)); toast(`⏱ وقتكم صار ${sec} ثانية (تخريب من الخصم)`, 3400, true); }
     }
     q.sec = sec;
     $("#prepBox").hidden = true;
@@ -1008,14 +1008,16 @@
         sheet.classList.remove("paused");
         draw();
         if (sec > 0) run();
+        queueSync();
       },
-      stop() { running = false; cancelAnimationFrame(raf); },
+      stop() { running = false; cancelAnimationFrame(raf); queueSync(); },
       pause() { if (running) { this.stop(); sheet.classList.add("paused"); } },
-      resume() { if (total && left > 0 && !running) run(); },
+      resume() { if (total && left > 0 && !running) { run(); queueSync(); } },
+      state() { return { total, left, running }; },
       toggle() {
         if (!total) return;
         if (left <= 0) { this.start(total); return; }
-        if (running) { this.stop(); sheet.classList.add("paused"); } else run();
+        if (running) { this.stop(); sheet.classList.add("paused"); } else { run(); queueSync(); }
         Sound.play("tap");
       },
     };
@@ -1098,7 +1100,7 @@
     game.pendingSab = null;
     closeModal("sabModal");
     endTarget();
-    if (msg) toast(msg, 3400);
+    if (msg) toast(msg, 4200, true);
     if (ps) advanceTurn(ps.starter);
     queueSync();
   }
@@ -1195,6 +1197,12 @@
       pk: picked,
       msg: statusMessage().slice(0, 90),
       sc: game.score,
+      tm: (() => {
+        const ts = Timer.state();
+        return q && q.phase === "live" && ts.total > 0 ? [Math.round(ts.left * 10) / 10, ts.total, ts.running ? 1 : 0] : null;
+      })(),
+      fx: { sk: game.fx.skip, tc: game.fx.timeCut, hd: game.fx.hard },
+      fb: Object.keys(game.frozen).map((k) => game.frozen[k].by),
     };
   }
   function note(msg) { if (Bell && Bell.setNote) Bell.setNote(String(msg).slice(0, 90)); }
@@ -1553,6 +1561,7 @@
     Bell.init({
       teams: () => settings.teams.map((t) => ({ n: t.name, c: COLORS[t.color].c, l: COLORS[t.color].l, d: COLORS[t.color].d })),
       drawMini,
+      sound: (n) => Sound.play(n),
       onBuzz: (info) => {
         if ($("#qModal").hidden || !q || q.phase !== "live") return;
         Timer.pause();

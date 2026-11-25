@@ -39,7 +39,9 @@
     const r = await getRoom();
     if (!r) return null;
     if (transport === "mqtt") {
-      try { return await r.join("hrf-" + code); } catch (_) { return null; }
+      // اللاعب: أول رقم من الرمز = السيرفر، والباقي اسم الغرفة
+      if (!/^[1-9]\d{5}$/.test(code) || +code[0] > (r.brokers || 1)) return null;
+      try { return await r.join("hrf-" + code.slice(1), { broker: +code[0] - 1 }); } catch (_) { return null; }
     }
     let ns = r;
     try { ns = await r.join("hrf-" + code); } catch (_) { ns = r; }
@@ -101,8 +103,18 @@
     if (host.on) return true;
     await getRoom();
     let code = wantedCode || store.get().code || newCode();
-    if (transport === "mqtt" && String(code).length < 6) code = newCode();
-    const ns = await joinCode(code);
+    let ns;
+    if (transport === "mqtt") {
+      // المقدم: يجرب السيرفرات بالتوازي ويأخذ أسرعها، والرمز يحمل رقمه
+      let prefer = -1, suffix;
+      const saved = String(code);
+      if (/^[1-9]\d{5}$/.test(saved) && +saved[0] <= (roomNs.brokers || 1)) { prefer = +saved[0] - 1; suffix = saved.slice(1); }
+      else suffix = String(Math.floor(10000 + Math.random() * 90000));
+      try { ns = await roomNs.join("hrf-" + suffix, { prefer }); } catch (_) { ns = null; }
+      if (ns) code = String(ns.broker + 1) + suffix;
+    } else {
+      ns = await joinCode(code);
+    }
     if (!ns) return false;
     host.ns = ns; host.code = code; host.on = true;
     host.off = ns.onPeers(onHostPeers);
@@ -126,8 +138,8 @@
   async function hostNewCode() {
     const was = host.on;
     hostStop();
-    store.set({ on: false, code: newCode() });
-    if (was) await hostStart(store.get().code);
+    store.set({ on: false, code: "" });
+    if (was) await hostStart();
     renderPanel();
   }
 
@@ -170,7 +182,7 @@
   }
 
   /* ================= جهة اللاعب ================= */
-  const pl = { ns: null, off: null, code: "", name: "", team: -1, n: 0, state: null, myPeer: "", pending: 0, waitTimer: 0, boardKey: "", noteK: 0, noteTimer: 0 };
+  const pl = { ns: null, off: null, code: "", name: "", team: -1, n: 0, state: null, myPeer: "", pending: 0, waitTimer: 0, failTimer: 0, boardKey: "", noteK: 0, noteTimer: 0, tm: null, tmKey: "", tick: 0, lastMode: "", lastWhole: 0, everHost: false };
 
   function plShow(which) {
     ["plConnect", "plTeam", "plBuzz"].forEach((id) => { $("#" + id).hidden = id !== which; });
@@ -182,7 +194,9 @@
     const msg = $("#plMsg");
     if (code.length < 4) { msg.textContent = "اكتب الرمز كامل."; $("#plCode").focus(); return; }
     if (!name) { msg.textContent = "اكتب اسمك."; $("#plName").focus(); return; }
-    msg.textContent = "جاري الاتصال…";
+    await getRoom();
+    if (transport === "mqtt" && !/^[1-9]\d{5}$/.test(code)) { msg.textContent = "الرمز غير صحيح، تأكد منه (6 أرقام)."; $("#plCode").focus(); return; }
+    msg.textContent = "جاري الاتصال… قد ياخذ ثواني";
     $("#plGo").disabled = true;
     const ns = await joinCode(code);
     $("#plGo").disabled = false;
@@ -197,11 +211,16 @@
     quiet(ns.presence({ app: APP, role: "player", code, name, team: pl.team }));
     msg.textContent = "";
     plShow("plConnect");
-    $("#plMsg").textContent = "ندوّر على اللعبة…";
+    $("#plMsg").textContent = "جاري الدخول للعبة… قد ياخذ ثواني";
     clearTimeout(pl.waitTimer);
     pl.waitTimer = setTimeout(() => {
-      if (!pl.state) $("#plMsg").textContent = "ما لقينا لعبة بهذا الرمز. تأكد من الرمز وإن المقدم شغّل الجرس.";
-    }, 5000);
+      if (!pl.state) $("#plMsg").textContent = "لسه نحاول… (تأكد من الرمز وإن المقدم شغّل الجرس)";
+    }, 12000);
+    clearTimeout(pl.failTimer);
+    pl.failTimer = setTimeout(() => {
+      if (!pl.state) $("#plMsg").textContent = "ما لقينا اللعبة. تأكد من الرمز، وإن المقدم شغّل الجرس، وإن الإنترنت شغال.";
+    }, 30000);
+    startPlayerTick();
   }
 
   function onPlayerPeers(change) {
@@ -222,14 +241,23 @@
   function plRender() {
     const s = pl.state;
     if (!s) {
+      if (pl.everHost && !$("#plBuzz").hidden) {
+        // كنا متصلين والمقدم اختفى: نبقى على الشاشة وننتظره
+        $("#plStatus").textContent = "المقدم غير متصل… ننتظره";
+        $("#plBuzz").dataset.mode = "idle";
+        $("#plBtn").disabled = true;
+        $("#plConn").textContent = "🟡 المقدم غير متصل";
+        return;
+      }
       if (!$("#plConnect").hidden || !$("#plBuzz").hidden || !$("#plTeam").hidden) {
-        if (pl.ns) { plShow("plConnect"); $("#plMsg").textContent = "ندوّر على اللعبة…"; }
+        if (pl.ns) { plShow("plConnect"); $("#plMsg").textContent = "جاري الدخول للعبة… قد ياخذ ثواني"; }
       }
       return;
     }
+    pl.everHost = true;
     const teams = Array.isArray(s.teams) && s.teams.length === 2 ? s.teams : null;
     if (!teams) return;
-    clearTimeout(pl.waitTimer);
+    clearTimeout(pl.waitTimer); clearTimeout(pl.failTimer);
     const root = document.documentElement.style;
     root.setProperty("--pa", teams[0].c); root.setProperty("--pa-l", teams[0].l); root.setProperty("--pa-d", teams[0].d);
     root.setProperty("--pb", teams[1].c); root.setProperty("--pb-l", teams[1].l); root.setProperty("--pb-d", teams[1].d);
@@ -242,6 +270,35 @@
     const mine = pl.team;
     box.dataset.team = String(mine);
     $("#plChip").textContent = `${pl.name} · ${teams[mine].n}` + (s.tn === mine && !s.winner ? " · دوركم" : "");
+
+    // النتيجة
+    const sc = Array.isArray(s.sc) ? s.sc : [0, 0];
+    $("#psN0").textContent = teams[0].n; $("#psS0").textContent = sc[0] || 0;
+    $("#psN1").textContent = teams[1].n; $("#psS1").textContent = sc[1] || 0;
+
+    // المؤقت (نستقبل الباقي من المقدم ونكمل العد محلياً)
+    const tmKey = JSON.stringify(s.tm || null);
+    if (tmKey !== pl.tmKey) {
+      pl.tmKey = tmKey;
+      pl.tm = Array.isArray(s.tm) && +s.tm[1] > 0 ? { left: +s.tm[0], total: +s.tm[1], running: !!s.tm[2], at: Date.now() } : null;
+      pl.lastWhole = 0;
+    }
+    tickTimer();
+
+    // شارات التخريب اللي علينا
+    const fxs = s.fx || {};
+    const chips = [];
+    if (fxs.sk && fxs.sk[mine]) chips.push("⛔ دوركم القادم ضايع");
+    if (fxs.tc && fxs.tc[mine]) chips.push("⏱ وقتكم نص في سؤالكم القادم");
+    if (fxs.hd && fxs.hd[mine]) chips.push("🔥 سؤالكم القادم صعب");
+    const fz = Array.isArray(s.fz) ? s.fz : [], fb = Array.isArray(s.fb) ? s.fb : [];
+    const frozenOnUs = fz.filter((_, k) => fb[k] !== mine).length;
+    if (frozenOnUs) chips.push(`❄️ ${frozenOnUs} ${frozenOnUs > 1 ? "حروف مجمّدة" : "حرف مجمّد"} عليكم`);
+    const fxBox = $("#plFx");
+    fxBox.innerHTML = "";
+    chips.forEach((t) => { const c = document.createElement("span"); c.textContent = t; fxBox.append(c); });
+    fxBox.hidden = !chips.length;
+    $("#plConn").textContent = "🟢 متصل";
 
     // اللوحة الحية
     const key = [s.n, s.l, s.o, JSON.stringify(s.fz || []), s.pk].join("|");
@@ -262,7 +319,8 @@
       n.hidden = false;
       n.classList.remove("show"); void n.offsetWidth; n.classList.add("show");
       clearTimeout(pl.noteTimer);
-      pl.noteTimer = setTimeout(() => { n.hidden = true; }, 5500);
+      pl.noteTimer = setTimeout(() => { n.hidden = true; }, 9000);
+      try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch (_) {}
     }
 
     const banned = Array.isArray(s.banned) ? s.banned : [];
@@ -284,10 +342,38 @@
     } else {
       mode = "idle"; label = "استنّ"; status = clean(s.msg, 90) || "السؤال الجاي";
     }
+    if (mode === "armed" && pl.lastMode !== "armed" && ctx.sound) ctx.sound("open");
+    pl.lastMode = mode;
     box.dataset.mode = mode;
     txt.textContent = label;
     st.textContent = status;
     btn.disabled = mode !== "armed";
+  }
+
+  function tickTimer() {
+    const box = $("#plTimer"), t = pl.tm;
+    if (!t) { box.hidden = true; return; }
+    const left = t.running ? Math.max(0, t.left - (Date.now() - t.at) / 1000) : t.left;
+    box.hidden = false;
+    $("#plTimerText").textContent = left > 0 ? Math.ceil(left) : "انتهى الوقت";
+    $("#plTimerFill").style.width = Math.max(0, Math.min(100, (left / t.total) * 100)) + "%";
+    box.classList.toggle("low", left > 0 && left <= 5);
+    box.classList.toggle("done", left <= 0);
+    box.classList.toggle("paused", !t.running && left > 0);
+    const whole = Math.ceil(left);
+    if (t.running && whole !== pl.lastWhole) {
+      pl.lastWhole = whole;
+      if (left > 0 && whole <= 5 && ctx.sound) ctx.sound("tick");
+      if (left <= 0) { try { navigator.vibrate && navigator.vibrate(200); } catch (_) {} }
+    }
+  }
+  function startPlayerTick() {
+    clearInterval(pl.tick);
+    pl.tick = setInterval(() => {
+      if (!pl.ns) return;
+      if (pl.state) tickTimer();
+      if (pl.ns.connected && !pl.ns.connected()) $("#plConn").textContent = "🟠 يعيد الاتصال…";
+    }, 250);
   }
 
   function plBuzz() {
@@ -302,6 +388,8 @@
   }
 
   function plLeave() {
+    clearInterval(pl.tick); clearTimeout(pl.waitTimer); clearTimeout(pl.failTimer);
+    pl.everHost = false; pl.tm = null; pl.tmKey = ""; pl.lastMode = "";
     if (pl.off) { try { pl.off(); } catch (_) {} pl.off = null; }
     if (pl.ns) {
       quiet(pl.ns.presence({ app: null, role: null, code: null, name: null, team: null, buzz: null }));
@@ -380,7 +468,7 @@
       host.note = { t: clean(text, 90), k: host.noteN };
       publish();
       clearTimeout(host.noteTimer);
-      host.noteTimer = setTimeout(() => { host.note = null; publish(); }, 7000);
+      host.noteTimer = setTimeout(() => { host.note = null; publish(); }, 10000);
     },
     questionOpened(letter) {
       if (!host.on) return;
