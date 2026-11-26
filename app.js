@@ -1977,4 +1977,6 @@
     newMatch();
     if (!playerOnly) openHome();
   }
+  // رابط مباشر للعبة: #sj أو #letters يفتح بطاقتها على طول
+  { const h = location.hash; if (!playerOnly && !$("#home").hidden && (h === "#sj" || h === "#letters")) $(h === "#sj" ? "#homeSj" : "#homeLetters").click(); }
 })();
