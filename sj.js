@@ -11,6 +11,9 @@
   const KEY = "haroof3:sj";
   const SEEN_KEY = "haroof3:sjseen";
   const NCOL = 6, NCELL = 36;
+  // لكل عمود لونه الخاص
+  const COLS = ["#ff4fa3", "#37e0ff", "#ffc94d", "#6cf08a", "#a98bff", "#ff8a5c"];
+  let justDone = -1;
 
   let ctx = null;
   let state = null;           // اللعبة الحالية
@@ -78,20 +81,33 @@
     const tm = teams();
     [0, 1].forEach((t) => {
       $("#sjName" + t).textContent = tm[t].n;
-      $("#sjScore" + t).textContent = state.score[t];
+      const sc = $("#sjScore" + t);
+      if (sc.textContent !== String(state.score[t])) {
+        const grew = +sc.textContent < state.score[t] && sc.textContent !== "";
+        sc.textContent = state.score[t];
+        if (grew) { sc.classList.remove("bump"); void sc.offsetWidth; sc.classList.add("bump"); }
+      }
       $("#sjTeam" + t).classList.toggle("turn", state.turn === t);
     });
     const left = state.used.filter((u) => u < 0).length;
     $("#sjRound").textContent = left ? `باقي ${left} من ${NCELL} سؤال` : "خلصت الأسئلة";
   }
 
-  function renderBoard() {
+  let introTimer = 0;
+  function renderBoard(intro) {
     const b = $("#sjBoard");
     b.innerHTML = "";
-    state.cats.forEach((id) => {
+    if (intro) {
+      b.classList.add("intro");
+      clearTimeout(introTimer);
+      introTimer = setTimeout(() => b.classList.remove("intro"), 2200);
+    }
+    state.cats.forEach((id, col) => {
       const c = BYID[id];
       const h = document.createElement("div");
       h.className = "sj-cat";
+      h.style.setProperty("--cc", COLS[col]);
+      h.style.setProperty("--k", String(col));
       const ic = document.createElement("span"); ic.className = "sj-cat-ic"; ic.textContent = c.icon;
       const nmEl = document.createElement("span"); nmEl.className = "sj-cat-name"; nmEl.textContent = c.name;
       h.append(ic, nmEl);
@@ -100,8 +116,10 @@
     for (let i = 0; i < NCELL; i++) {
       const cell = document.createElement("button");
       cell.type = "button";
-      cell.className = "sj-cell";
+      cell.className = "sj-cell" + (i === justDone ? " just" : "");
       cell.dataset.i = String(i);
+      cell.style.setProperty("--cc", COLS[i % NCOL]);
+      cell.style.setProperty("--k", String((i % NCOL) + Math.floor(i / NCOL)));
       const u = state.used[i];
       if (u >= 0) {
         cell.classList.add("done");
@@ -114,6 +132,7 @@
       }
       b.append(cell);
     }
+    justDone = -1;
     renderHud();
   }
 
@@ -165,7 +184,9 @@
     const cat = BYID[state.cats[open % NCOL]];
     const t = state.turn;
     const mult = state.mult || 1;
-    $("#sjQCat").textContent = `${cat.icon} ${cat.name}`;
+    $("#sjQCat").textContent = cat.name;
+    $("#sjQIcon").textContent = cat.icon;
+    $("#sjModal .sj-sheet").style.setProperty("--cc", COLS[open % NCOL]);
     $("#sjQPts").textContent = String(pts(open) * mult) + (mult > 1 ? " ⚡" : "");
     $("#sjQTurn").textContent = `الدور على ${nm(t)}`;
     $("#sjQTurn").dataset.t = String(t);
@@ -235,6 +256,7 @@
     }
     state.turn = 1 - picker;
     state.last = msg;
+    justDone = i;
     persist();
     closeQuestion();
     renderBoard();
@@ -312,8 +334,9 @@
 
   /* ================= واجهة عامة ================= */
   function show() {
+    const was = $("#sj").hidden;
     $("#sj").hidden = false;
-    renderBoard();
+    if (state) renderBoard(was);
   }
   function hide() { $("#sj").hidden = true; }
 
@@ -335,6 +358,7 @@
     };
     persist();
     show();
+    renderBoard(true);
     ctx.sync(true);
     return true;
   }

@@ -8,9 +8,9 @@
 <title>مسابقة حروف</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&family=Lalezar&family=Noto+Kufi+Arabic:wght@700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&family=Changa:wght@600;800&family=Lalezar&family=Rakkas&family=Noto+Kufi+Arabic:wght@700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <!-- HEAD END -->
-<link rel="stylesheet" href="style.css?v=1795710554">
+<link rel="stylesheet" href="style.css?v=1795712286">
 </head>
 <body>
 <!-- APP START -->
@@ -110,17 +110,17 @@
     <header class="hud">
       <button class="team" id="sjTeam0" data-t="0" title="اضغط لتعطيهم الدور">
         <span class="turn-badge">دورهم</span>
-        <svg class="team-hex" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.5 21.5,7 21.5,17 12,22.5 2.5,17 2.5,7"/></svg>
+        <span class="sj-av" aria-hidden="true">★</span>
         <span class="team-info"><span class="team-name" id="sjName0"></span></span>
         <span class="sj-score" id="sjScore0">0</span>
       </button>
       <div class="brand">
-        <div class="logo">سين جيم</div>
+        <div class="logo sj-logo">سين جيم</div>
         <div class="round" id="sjRound"></div>
       </div>
       <button class="team" id="sjTeam1" data-t="1" title="اضغط لتعطيهم الدور">
         <span class="turn-badge">دورهم</span>
-        <svg class="team-hex" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.5 21.5,7 21.5,17 12,22.5 2.5,17 2.5,7"/></svg>
+        <span class="sj-av" aria-hidden="true">★</span>
         <span class="team-info"><span class="team-name" id="sjName1"></span></span>
         <span class="sj-score" id="sjScore1">0</span>
       </button>
@@ -131,6 +131,7 @@
   <!-- ===== سؤال سين جيم ===== -->
   <div class="modal" id="sjModal" hidden>
     <div class="sheet sj-sheet" role="dialog" aria-modal="true" aria-labelledby="sjQCat">
+      <div class="sj-qicon" id="sjQIcon" aria-hidden="true"></div>
       <div class="sj-qhead"><span class="sj-qcat" id="sjQCat"></span><span class="sj-qpts" id="sjQPts"></span></div>
       <div class="sj-qturn" id="sjQTurn"></div>
       <div class="sj-timer" id="sjTimer" hidden>
@@ -157,6 +158,7 @@
 
   <div class="modal" id="sjWin" hidden>
     <div class="sheet win-sheet" role="dialog" aria-modal="true" aria-labelledby="sjWinTitle">
+      <div class="sj-trophy" aria-hidden="true">🏆</div>
       <h3 class="sj-win-title" id="sjWinTitle"></h3>
       <p class="muted sj-win-score" id="sjWinScore"></p>
       <div class="win-actions">
@@ -352,6 +354,79 @@
     </div>
   </div>
 
+  <!-- ===== القائمة: اختيار اللعبة ===== -->
+  <div class="home" id="home" hidden>
+    <div class="home-glow" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="home-inner">
+      <header class="home-head">
+        <div class="home-kicker">✦ مسابقات العيلة ✦</div>
+        <h1 class="home-title">وش نلعب الليلة؟</h1>
+      </header>
+      <div class="home-cards">
+        <button class="gcard gc-letters" id="homeLetters" type="button">
+          <span class="gc-shine" aria-hidden="true"></span>
+          <svg class="gc-art" viewBox="0 0 300 190" aria-hidden="true">
+            <defs>
+              <linearGradient id="gcA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6ee7a8"/><stop offset="1" stop-color="#12804b"/></linearGradient>
+              <linearGradient id="gcB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb37a"/><stop offset="1" stop-color="#c25813"/></linearGradient>
+              <linearGradient id="gcC" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#e6d6b4"/></linearGradient>
+              <linearGradient id="gcG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe29a"/><stop offset="1" stop-color="#e0a020"/></linearGradient>
+            </defs>
+            <g class="hc">
+              <g class="hx" style="--d:0s"><polygon points="150,20 182,38.5 182,75.5 150,94 118,75.5 118,38.5" fill="url(#gcG)"/><text x="150" y="70">ح</text></g>
+              <g class="hx" style="--d:.3s"><polygon points="114,82 146,100.5 146,137.5 114,156 82,137.5 82,100.5" fill="url(#gcA)"/><text x="114" y="132">ر</text></g>
+              <g class="hx" style="--d:.6s"><polygon points="186,82 218,100.5 218,137.5 186,156 154,137.5 154,100.5" fill="url(#gcB)"/><text x="186" y="132">و</text></g>
+              <g class="hx" style="--d:.9s"><polygon points="78,20 110,38.5 110,75.5 78,94 46,75.5 46,38.5" fill="url(#gcC)"/><text class="ink" x="78" y="70">ف</text></g>
+              <g class="hx" style="--d:1.2s"><polygon points="222,20 254,38.5 254,75.5 222,94 190,75.5 190,38.5" fill="url(#gcC)"/><text class="ink" x="222" y="70">ع</text></g>
+              <g class="hx dim" style="--d:1.5s"><polygon points="42,82 74,100.5 74,137.5 42,156 10,137.5 10,100.5" fill="url(#gcC)"/><text class="ink" x="42" y="132">ق</text></g>
+              <g class="hx dim" style="--d:1.8s"><polygon points="258,82 290,100.5 290,137.5 258,156 226,137.5 226,100.5" fill="url(#gcA)"/><text x="258" y="132">م</text></g>
+            </g>
+          </svg>
+          <span class="gc-body">
+            <span class="gc-name">حروف</span>
+            <span class="gc-tag">جاوب صح، خذ الخلية، وكمّل طريقك قبل الخصم</span>
+            <span class="gc-chips"><i>🔤 لوحة خلايا</i><i>💣 تخريب</i><i>🔔 جرس</i></span>
+            <span class="gc-go">يلا نلعب <b>←</b></span>
+          </span>
+          <span class="gc-live" id="homeLettersLive" hidden>● لعبة شغالة</span>
+        </button>
+
+        <button class="gcard gc-sj" id="homeSj" type="button">
+          <span class="gc-shine" aria-hidden="true"></span>
+          <svg class="gc-art" viewBox="0 0 300 190" aria-hidden="true">
+            <defs>
+              <linearGradient id="gsP" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8cc8"/><stop offset="1" stop-color="#d61f7f"/></linearGradient>
+              <linearGradient id="gsC" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8ef0ff"/><stop offset="1" stop-color="#1596c4"/></linearGradient>
+              <linearGradient id="gsT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a2386"/><stop offset="1" stop-color="#2a1150"/></linearGradient>
+              <radialGradient id="gsL" cx=".5" cy="0" r="1"><stop offset="0" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+            </defs>
+            <path class="beam" d="M150 -10 L60 190 L240 190 Z" fill="url(#gsL)"/>
+            <g class="tiles">
+              <rect x="70" y="92" width="48" height="30" rx="7"/><rect x="126" y="92" width="48" height="30" rx="7"/><rect x="182" y="92" width="48" height="30" rx="7"/>
+              <rect x="70" y="128" width="48" height="30" rx="7"/><rect x="126" y="128" width="48" height="30" rx="7"/><rect x="182" y="128" width="48" height="30" rx="7"/>
+              <text x="94" y="113">200</text><text x="150" y="113">400</text><text x="206" y="113">600</text>
+              <text x="94" y="149">400</text><text x="150" y="149">600</text><text x="206" y="149">200</text>
+            </g>
+            <g class="bub b1"><path d="M28 18 h86 a16 16 0 0 1 16 16 v34 a16 16 0 0 1 -16 16 h-52 l-20 16 l4 -16 h-18 a16 16 0 0 1 -16 -16 v-34 a16 16 0 0 1 16 -16 z" fill="url(#gsP)"/><text x="71" y="68">س</text></g>
+            <g class="bub b2"><path d="M186 8 h86 a16 16 0 0 1 16 16 v34 a16 16 0 0 1 -16 16 h-18 l4 16 l-20 -16 h-52 a16 16 0 0 1 -16 -16 v-34 a16 16 0 0 1 16 -16 z" fill="url(#gsC)"/><text x="229" y="58">ج</text></g>
+            <g class="spark"><path d="M150 30 l4 10 l10 4 l-10 4 l-4 10 l-4 -10 l-10 -4 l10 -4 z"/><path d="M30 140 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 z"/><path d="M272 128 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 z"/></g>
+          </svg>
+          <span class="gc-body">
+            <span class="gc-name">سين جيم</span>
+            <span class="gc-tag">ست فئات وأسئلة بنقاط: اختاروا، جاوبوا، واجمعوا</span>
+            <span class="gc-chips"><i>❓ 12 فئة</i><i>⚡ مضاعفة</i><i>🔄 تبديل</i></span>
+            <span class="gc-go">يلا نلعب <b>←</b></span>
+          </span>
+          <span class="gc-live" id="homeSjLive" hidden>● لعبة شغالة</span>
+        </button>
+      </div>
+      <div class="home-foot">
+        <button class="home-resume" id="homeResume" type="button" hidden></button>
+        <button class="chip-btn" id="homePlayer" type="button">📱 ادخل كلاعب من جوالك</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== الإعدادات ===== -->
   <div class="setup" id="setup" hidden>
     <div class="setup-inner">
@@ -359,7 +434,9 @@
         <button class="back-btn" id="btnBack">→ رجوع للعبة</button>
         <span class="setup-state">اللعبة شغالة: تغييراتك تنطبق وتكمّلون</span>
       </div>
+      <button class="home-link" id="btnHome" type="button">→ القائمة</button>
       <div class="setup-head">
+        <div class="setup-sj-art" aria-hidden="true"><span class="sb1">س</span><span class="sb2">ج</span></div>
         <svg class="setup-hexes" viewBox="0 0 120 60" aria-hidden="true">
           <polygon class="h1" points="20,8 36,17 36,35 20,44 4,35 4,17"/>
           <polygon class="h2" points="60,16 76,25 76,43 60,52 44,43 44,25"/>
@@ -367,18 +444,10 @@
         </svg>
         <div class="logo big" id="setupLogo">حروف</div>
         <p class="tagline" id="setupTag">جاوب صح، خذ الخلية، وكمّل طريقك قبل الخصم.</p>
-        <button class="chip-btn" id="btnPlayerMode">📱 ادخل كجرس من جوالك</button>
+        <button class="chip-btn" id="btnPlayerMode">📱 ادخل كلاعب من جوالك</button>
       </div>
 
       <div class="setup-grid">
-        <section class="card span2">
-          <h2>اللعبة</h2>
-          <div class="seg" data-key="game">
-            <button data-v="letters">🔤 حروف</button>
-            <button data-v="sj">❓ سين جيم</button>
-          </div>
-          <p class="note" id="gameNote"></p>
-        </section>
 
         <section class="card span2">
           <h2>الفريقين</h2>
@@ -662,15 +731,15 @@
   <canvas id="fx" aria-hidden="true"></canvas>
 </div>
 <!-- APP END -->
-<script src="questions.js?v=1795710554"></script>
-<script src="questions_more.js?v=1795710554"></script>
-<script src="questions_nice.js?v=1795710554"></script>
-<script src="questions_hard.js?v=1795710554"></script>
-<script src="questions_sj.js?v=1795710554"></script>
-<script src="vendor/mqtt.min.js?v=1795710554"></script>
-<script src="rtc.js?v=1795710554"></script>
-<script src="bell.js?v=1795710554"></script>
-<script src="sj.js?v=1795710554"></script>
-<script src="app.js?v=1795710554"></script>
+<script src="questions.js?v=1795712286"></script>
+<script src="questions_more.js?v=1795712286"></script>
+<script src="questions_nice.js?v=1795712286"></script>
+<script src="questions_hard.js?v=1795712286"></script>
+<script src="questions_sj.js?v=1795712286"></script>
+<script src="vendor/mqtt.min.js?v=1795712286"></script>
+<script src="rtc.js?v=1795712286"></script>
+<script src="bell.js?v=1795712286"></script>
+<script src="sj.js?v=1795712286"></script>
+<script src="app.js?v=1795712286"></script>
 </body>
 </html>

@@ -287,7 +287,7 @@
 
     // سين جيم: لوحة الفئات والسؤال (بدون جرس)
     if (s.g === "sj" && s.sj && typeof s.sj === "object") { plRenderSj(s, teams, mine); return; }
-    { const lg = $(".player-top .logo"); if (lg) lg.textContent = "حروف"; }
+    { const lg = $(".player-top .logo"); if (lg) lg.textContent = "حروف"; document.body.dataset.world = "letters"; }
     $("#plSj").hidden = true; $("#plBoard").toggleAttribute("hidden", false); $("#plQ").classList.remove("sj");
     pl.sjKey = ""; pl.sjMine = -1; pl.sjOpp = -1; pl.sjQ = "";
 
@@ -384,9 +384,11 @@
   }
 
   const SJ_ROWS = [200, 200, 400, 400, 600, 600];
+  const SJ_COLS = ["#ff4fa3", "#37e0ff", "#ffc94d", "#6cf08a", "#a98bff", "#ff8a5c"];
   function plRenderSj(s, teams, mine) {
     const sj = s.sj;
     const lg = $(".player-top .logo"); if (lg) lg.textContent = "سين جيم";
+    document.body.dataset.world = "sj";
     $("#plBoard").toggleAttribute("hidden", true);
     $("#plConn").textContent = "🟢 متصل";
     pl.boardKey = ""; pl.mineCnt = -1; pl.oppCnt = -1;
@@ -403,9 +405,10 @@
     if (key !== pl.sjKey) {
       pl.sjKey = key;
       grid.innerHTML = "";
-      cats.forEach((c) => {
+      cats.forEach((c, col) => {
         const h = document.createElement("div");
         h.className = "pl-sj-h";
+        h.style.setProperty("--cc", SJ_COLS[col]);
         const ic = document.createElement("span"); ic.textContent = clean(c && c[0], 4);
         const nm = document.createElement("b"); nm.textContent = clean(c && c[1], 24);
         h.append(ic, nm);
@@ -414,6 +417,7 @@
       for (let i = 0; i < 36; i++) {
         const ch = u[i] || ".";
         const d = document.createElement("div");
+        d.style.setProperty("--cc", SJ_COLS[i % 6]);
         d.className = "pl-sj-c" + (ch === "a" ? " a" : ch === "b" ? " b" : ch === "x" ? " x" : "") + (i === cur ? " cur" : "");
         d.textContent = ch === "." ? String(SJ_ROWS[Math.floor(i / 6)]) : ch === "x" ? "✕" : "✓";
         grid.append(d);
