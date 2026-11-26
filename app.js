@@ -1463,6 +1463,7 @@
         ? "أسئلة صعبة (لو حرف أسئلته الصعبة قليلة تنضاف العادية)."
         : "خليط: نص الأسئلة تقريباً صعبة.";
     renderSetupGame();
+    saveDraft();
     // معاينة الألوان في الشعار
     const root = document.documentElement.style;
     ["a", "b"].forEach((k, t) => {
@@ -1520,6 +1521,13 @@
     renderSetup();
   };
 
+  // نحفظ الإعدادات أول بأول (الأسماء والألوان وغيرها) عشان ما تضيع لو سكّرتم الصفحة قبل «ابدأ»
+  function saveDraft() { if (draft) store.set("settings", draft); }
+  addEventListener("pagehide", saveDraft);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveDraft(); });
+  // نطلب من المتصفح ما يمسح بيانات الموقع (الايفون يمسحها لو الموقع ما انفتح فترة)
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (_) {}
+
   function pickColor(t, key) {
     const other = 1 - t;
     const old = draft.teams[t].color;
@@ -1559,9 +1567,10 @@
     if (e.target.value !== digits) e.target.value = digits;
     if (digits !== "" && String(n) !== digits) e.target.value = String(n);
     draft.timer = n;
+    saveDraft();
   });
   for (const t of [0, 1]) {
-    $("#name" + t).addEventListener("input", (e) => { draft.teams[t].name = e.target.value; });
+    $("#name" + t).addEventListener("input", (e) => { draft.teams[t].name = e.target.value; saveDraft(); });
   }
 
 
