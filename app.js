@@ -108,25 +108,11 @@
 
   /* ================= الأصوات ================= */
   const Sound = (() => {
-    let ctx = null, master = null, silentEl = null, stateCb = null;
-    // الايفون: زر الصامت يكتم صوت المتصفح، فنخلي الجلسة "تشغيل" ونشغّل مقطع صامت
+    let ctx = null, master = null, stateCb = null;
+    // الايفون: زر الصامت يكتم صوت المتصفح، فنخلي جلسة الصوت "تشغيل".
+    // (ما نشغّل أي مقطع صامت: كان يطلع للمستخدم مشغّل وسائط في شاشة القفل)
     function iosAudioFix() {
       try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (_) {}
-      if (silentEl) return;
-      try {
-        const n = 4000, bytes = new Uint8Array(44 + n);
-        const dv = new DataView(bytes.buffer);
-        const w = (o, str) => { for (let i = 0; i < str.length; i++) bytes[o + i] = str.charCodeAt(i); };
-        w(0, "RIFF"); dv.setUint32(4, 36 + n, true); w(8, "WAVEfmt "); dv.setUint32(16, 16, true);
-        dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, 8000, true); dv.setUint32(28, 8000, true);
-        dv.setUint16(32, 1, true); dv.setUint16(34, 8, true); w(36, "data"); dv.setUint32(40, n, true);
-        bytes.fill(128, 44);
-        silentEl = new Audio(URL.createObjectURL(new Blob([bytes], { type: "audio/wav" })));
-        silentEl.loop = true;
-        silentEl.volume = 0.01;
-        silentEl.setAttribute("playsinline", "");
-        silentEl.play().catch(() => {});
-      } catch (_) { silentEl = null; }
     }
     function init() {
       if (!ctx) {
