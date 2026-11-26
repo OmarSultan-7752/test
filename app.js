@@ -24,7 +24,7 @@
   const DEFAULTS = {
     teams: [{ name: "الفريق الأخضر", color: "green" }, { name: "الفريق البرتقالي", color: "orange" }],
     size: 5, timer: 20, target: 2, mode: "bank", font: "ruqaa", play: "turn", level: "mixed", sab: "on",
-    game: "letters", sjCats: ["countries", "geo", "animals", "islam", "food", "riddles"], sjlf: "on",
+    loud: "off", game: "letters", sjCats: ["countries", "geo", "animals", "islam", "food", "riddles"], sjlf: "on",
   };
   const SJ_CATS = window.SJ_CATEGORIES || [];
   const SJ = window.HaroofSJ || null;
@@ -77,6 +77,7 @@
     if (!["turn", "race"].includes(out.play)) out.play = "turn";
     if (!["normal", "mixed", "hard"].includes(out.level)) out.level = "mixed";
     if (!["on", "off"].includes(out.sab)) out.sab = "on";
+    if (!["on", "off"].includes(out.loud)) out.loud = "off";
     if (!["letters", "sj"].includes(out.game) || !SJ) out.game = "letters";
     if (!["on", "off"].includes(out.sjlf)) out.sjlf = "on";
     out.sjCats = Array.isArray(out.sjCats) ? [...new Set(out.sjCats)].filter((id) => SJ_CATS.some((c) => c.id === id)).slice(0, 6) : [];
@@ -125,12 +126,21 @@
 
   /* ================= الأصوات ================= */
   const Sound = (() => {
-    let ctx = null, master = null, stateCb = null, lastUse = 0, ran = false;
+    let ctx = null, master = null, stateCb = null, lastUse = 0, ran = false, loud = false;
     // الايفون: زر الصامت يكتم صوت المتصفح، فنخلي جلسة الصوت "تشغيل" وقت ما نشغّل أصوات بس.
     // ولما نخلص (أو تتقفل الشاشة / نطلع من الصفحة) نوقف الصوت ونرجّع الجلسة "auto"
     // عشان ما يطلع مشغّل وسائط في شاشة القفل.
     function iosAudioFix() {
-      try { if (navigator.audioSession && navigator.audioSession.type !== "playback") navigator.audioSession.type = "playback"; } catch (_) {}
+      try {
+        if (!navigator.audioSession) return;
+        const want = loud ? "playback" : "auto";
+        if (navigator.audioSession.type !== want) navigator.audioSession.type = want;
+      } catch (_) {}
+    }
+    // نقفل الصوت تماماً لما الصفحة تختفي (شاشة القفل) عشان ما يبقى مشغّل وسائط
+    function closeAll() {
+      try { if (navigator.audioSession) navigator.audioSession.type = "auto"; } catch (_) {}
+      try { if (ctx) { const c = ctx; ctx = null; master = null; c.close().catch(() => {}); } } catch (_) { ctx = null; }
     }
     function sleep() {
       try { if (ctx && ctx.state === "running") ctx.suspend().catch(() => {}); } catch (_) {}
@@ -149,7 +159,8 @@
           const comp = ctx.createDynamicsCompressor();
           master.connect(comp);
           comp.connect(ctx.destination);
-          ctx.onstatechange = () => { if (ctx.state === "running") ran = true; if (stateCb) stateCb(ctx.state); };
+          const me = ctx;
+          ctx.onstatechange = () => { if (me.state === "running") ran = true; if (stateCb) stateCb(me.state); };
         } catch (_) { ctx = null; return null; }
       }
       if (ctx.state !== "running") {
@@ -226,6 +237,8 @@
     return {
       unlock() { lastUse = Date.now(); iosAudioFix(); init(); },
       sleep,
+      closeAll,
+      setLoud(v) { loud = !!v; iosAudioFix(); },
       running() { return !!(ctx && ctx.state === "running"); },
       everRan() { return ran; },
       state() { return ctx ? ctx.state : "لم يبدأ"; },
@@ -241,8 +254,8 @@
   ["touchend", "pointerup", "click", "keydown"].forEach((ev) =>
     document.addEventListener(ev, () => { if (!Sound.running()) Sound.unlock(); else Sound.unlock(); }, { passive: true })
   );
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") Sound.unlock(); else Sound.sleep(); });
-  addEventListener("pagehide", () => Sound.sleep());
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") Sound.unlock(); else Sound.closeAll(); });
+  addEventListener("pagehide", () => Sound.closeAll());
   // نقرة خفيفة مع كل زر
   document.addEventListener("click", (e) => {
     const b = e.target && e.target.closest ? e.target.closest("button") : null;
@@ -1493,6 +1506,10 @@
         ? "أسئلة صعبة (لو حرف أسئلته الصعبة قليلة تنضاف العادية)."
         : "خليط: نص الأسئلة تقريباً صعبة.";
     renderSetupGame();
+    Sound.setLoud(draft.loud === "on");
+    $("#loudNote").textContent = draft.loud === "on"
+      ? "الصوت يطلع حتى لو الجوال على الصامت، بس ممكن يظهر مشغّل وسائط في شاشة القفل."
+      : "ما يطلع مشغّل في شاشة القفل. لو جوالك على الصامت ما يطلع صوت (شغّلوا الصوت أو اختاروا «يتجاوز الصامت»).";
     saveDraft();
     // معاينة الألوان في الشعار
     const root = document.documentElement.style;
@@ -1649,7 +1666,7 @@
   $("#btnHome").onclick = () => openHome();
   function showSoundState() {
     const st = Sound.state();
-    const ok = st === "running" || (st === "suspended" && Sound.everRan());
+    const ok = st === "running" || Sound.everRan();
     $("#soundState").textContent = ok
       ? "✅ الصوت جاهز. إذا ما سمعت: ارفع الصوت وأطفئ زر الصامت."
       : `⚠️ الصوت ما انفتح بعد (الحالة: ${st}). المس الشاشة ثم جرّب مرة ثانية.`;
@@ -1876,6 +1893,7 @@
   document.documentElement.setAttribute("dir", "rtl");
   document.documentElement.setAttribute("lang", "ar");
   applyTheme();
+  Sound.setLoud(settings.loud === "on");
   keepAwake();
   if (Bell) {
     Bell.init({
