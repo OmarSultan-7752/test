@@ -69,8 +69,8 @@ sj_seen = set()
 for c in sj_cats:
     for lv in ("200", "400", "600"):
         items = c["q"].get(lv, [])
-        if len(items) != 5:
-            problems.append(f"[سين جيم {c['id']} {lv}] لازم 5 أسئلة وفيه {len(items)}")
+        if len(items) < 5:
+            problems.append(f"[سين جيم {c['id']} {lv}] لازم 5 أسئلة على الأقل وفيه {len(items)}")
         for item in items:
             q, a = item[0], item[1]
             im = item[2] if len(item) > 2 else ""
