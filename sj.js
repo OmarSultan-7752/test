@@ -475,8 +475,10 @@
       tx.textContent = EFFECTS[id].icon;
       g.append(path, tx);
     });
-    svg.style.transition = "none";
-    svg.style.transform = `rotate(${wheel.rot}deg)`;
+    if (!wheel.spinning) {
+      svg.style.transition = "none";
+      svg.style.transform = `rotate(${wheel.rot}deg)`;
+    }
     const lg = $("#sjWheelLegend");
     lg.innerHTML = "";
     wheel.opts.forEach((id, i) => {
@@ -515,13 +517,16 @@
     const r = Math.floor(Math.random() * n);
     const jitter = (Math.random() - 0.5) * seg * 0.6;
     const base = Math.ceil(wheel.rot / 360) * 360;
-    wheel.rot = base + 360 * 5 + (360 - (r + 0.5) * seg) + jitter;
+    const target = base + 360 * 5 + (360 - (r + 0.5) * seg) + jitter;
     wheel.spinning = true; wheel.r = -1; wheel.respin = false; wheel.msg = "";
-    renderWheel();
+    renderWheel();   // ما يغيّر الدوران وقت اللف
     const svg = $("#sjWheelSvg");
+    svg.style.transition = "none";
+    svg.style.transform = `rotate(${wheel.rot}deg)`;
     void svg.getBoundingClientRect();
     svg.style.transition = "transform 5s cubic-bezier(.12,.7,.12,1)";
-    svg.style.transform = `rotate(${wheel.rot}deg)`;
+    svg.style.transform = `rotate(${target}deg)`;
+    wheel.rot = target;
     spinTicks.forEach(clearTimeout); spinTicks = [];
     for (let k = 1; k <= 24; k++) spinTicks.push(setTimeout(() => ctx.sound("tick"), 5000 * Math.pow(k / 24, 1.2)));
     clearTimeout(spinTimer);
