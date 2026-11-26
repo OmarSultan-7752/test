@@ -1985,3 +1985,10 @@ body[data-world="sj"] .swatch.on { box-shadow: 0 0 0 3px #fff, 0 0 16px var(--c)
 .pl-wheel .pw-o span.win { background: var(--gold); color: #2a1500; transform: scale(1.12); }
 .pl-wheel .pw-m { margin-top: 6px; font-weight: 800; color: #ffe7a8; }
 @media (max-height: 700px) { .sj-wheel-box { width: min(220px, 60vw); } .sj-wheel-legend { gap: 4px; } }
+
+/* صور الأسئلة (الأعلام) */
+.sj-qimg { display: block; width: min(230px, 62%); aspect-ratio: 4 / 3; object-fit: cover; margin: 10px auto 4px; border-radius: 14px; border: 3px solid rgba(255, 255, 255, .85); box-shadow: 0 10px 30px rgba(0, 0, 0, .5), 0 0 0 1px rgba(0, 0, 0, .3); background: #fff; animation: popIn .45s cubic-bezier(.2, 1.4, .4, 1); }
+.sj-qimg[hidden] { display: none; }
+.pl-qimg { flex: none; width: 76px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; border: 2px solid rgba(255, 255, 255, .85); box-shadow: 0 4px 12px rgba(0, 0, 0, .4); background: #fff; }
+.pl-qimg[hidden] { display: none; }
+@media (max-height: 480px) { .sj-qimg { width: 120px; margin-block: 4px; } }

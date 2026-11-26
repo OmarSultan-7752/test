@@ -290,6 +290,7 @@
     { const lg = $(".player-top .logo"); if (lg) lg.textContent = "حروف"; document.body.dataset.world = "letters"; }
     $("#plWheel").hidden = true;
     $("#plSj").hidden = true; $("#plBoard").toggleAttribute("hidden", false); $("#plQ").classList.remove("sj");
+    { const im = $("#plQImg"); if (im) im.hidden = true; }
     pl.sjKey = ""; pl.sjMine = -1; pl.sjOpp = -1; pl.sjQ = "";
 
     // شارات التخريب اللي علينا
@@ -435,11 +436,13 @@
     // السؤال (كامل، بدون كتابة تدريجية)
     const qBox = $("#plQ");
     qBox.classList.add("sj");
+    if (s.ph !== "live") { const im0 = $("#plQImg"); if (im0) im0.hidden = true; }
     pl.qt = ""; pl.qKey = "";
     if (s.ph === "live" && s.qt) {
       qBox.hidden = false;
       $("#plLetter").textContent = String(Math.max(0, +sj.pt || 0));
       $("#plQText").textContent = clean(s.qt, 200) + (sj.hn ? "\n💡 " + clean(sj.hn, 60) : "");
+      { const im = $("#plQImg"), code = /^[a-z]{2}$/.test(s.im || "") ? s.im : ""; if (code) { im.hidden = false; im.src = "flags/" + code + ".svg"; } else { im.hidden = true; im.removeAttribute("src"); } }
       if (pl.sjQ !== s.qt && ctx.sound) ctx.sound("open");
       pl.sjQ = s.qt;
     } else if (s.ph === "prep") {

@@ -56,19 +56,20 @@
       const cat = BYID[id];
       [200, 400, 600].forEach((lv, li) => {
         const pool = cat.q[String(lv)] || [];
-        let fresh = pool.filter((x) => !seen[x[0]]);
-        if (fresh.length < 2) { pool.forEach((x) => { delete seen[x[0]]; }); fresh = pool.slice(); }
+        const key = (x) => x[0] + "|" + (x[2] || "");
+        let fresh = pool.filter((x) => !seen[key(x)]);
+        if (fresh.length < 2) { pool.forEach((x) => { delete seen[key(x)]; }); fresh = pool.slice(); }
         const pick = shuffle(fresh);
         const rest = shuffle(pool.filter((x) => !pick.slice(0, 2).includes(x)));
         const two = pick.slice(0, 2);
         two.forEach((x, k) => {
-          seen[x[0]] = 1;
-          cells[(li * 2 + k) * NCOL + col] = { q: x[0], a: x[1], alts: rest.map((r) => [r[0], r[1]]) };
+          seen[key(x)] = 1;
+          cells[(li * 2 + k) * NCOL + col] = { q: x[0], a: x[1], im: x[2] || "", alts: rest.map((r) => [r[0], r[1], r[2] || ""]) };
         });
         // البدائل (للتبديل) تتوزع على الخليتين بدون تكرار
         const a = cells[(li * 2) * NCOL + col], b = cells[(li * 2 + 1) * NCOL + col];
-        a.alts = rest.slice(0, Math.ceil(rest.length / 2)).map((r) => [r[0], r[1]]);
-        b.alts = rest.slice(Math.ceil(rest.length / 2)).map((r) => [r[0], r[1]]);
+        a.alts = rest.slice(0, Math.ceil(rest.length / 2)).map((r) => [r[0], r[1], r[2] || ""]);
+        b.alts = rest.slice(Math.ceil(rest.length / 2)).map((r) => [r[0], r[1], r[2] || ""]);
       });
     });
     save(SEEN_KEY, seen);
@@ -236,6 +237,8 @@
       return;
     }
     $("#sjQText").textContent = c.q;
+    const im = $("#sjQImg");
+    if (/^[a-z]{2}$/.test(c.im || "")) { im.hidden = false; im.src = "flags/" + c.im + ".svg"; } else { im.hidden = true; im.removeAttribute("src"); }
     $("#sjAnsText").textContent = c.a;
     $("#sjAnswer").classList.toggle("shown", revealed);
     $("#sjLf").hidden = !on || revealed || qf.noLife;
@@ -349,7 +352,7 @@
     if (open < 0 || revealed || phase !== "live" || !lf.swap || qf.noLife || !c.alts || !c.alts.length) return;
     const nx = c.alts.shift();
     lf.swap = false;
-    c.q = nx[0]; c.a = nx[1];
+    c.q = nx[0]; c.a = nx[1]; c.im = nx[2] || "";
     hintOpen = false;
     persist();
     renderQuestion();
@@ -594,6 +597,7 @@
       sc: state.score,
       ph: live ? phase : "idle",
       qt: showQ ? c.q.slice(0, 200) : "",
+      im: showQ && /^[a-z]{2}$/.test(c.im || "") ? c.im : "",
       msg: msg.slice(0, 90),
       tm: showQ && !revealed ? timerView() : null,
       sj: {

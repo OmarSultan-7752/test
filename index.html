@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&family=Changa:wght@600;800&family=Lalezar&family=Rakkas&family=Noto+Kufi+Arabic:wght@700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <!-- HEAD END -->
-<link rel="stylesheet" href="style.css?v=1795714573">
+<link rel="stylesheet" href="style.css?v=1795715227">
 </head>
 <body>
 <!-- APP START -->
@@ -154,6 +154,7 @@
           <div class="sj-timer-bar"><i id="sjTimerFill"></i></div>
           <button class="sj-timer-text" id="sjTimerText" title="اضغط لإيقاف المؤقت أو تشغيله"></button>
         </div>
+        <img class="sj-qimg" id="sjQImg" alt="" hidden onerror="this.hidden=true">
         <p class="q-text sj-qtext" id="sjQText"></p>
         <div class="sj-hint" id="sjHintBox" hidden>💡 <span id="sjHintText"></span></div>
         <div class="sj-wmsg" id="sjWMsg2" hidden></div>
@@ -451,7 +452,7 @@
           <span class="gc-body">
             <span class="gc-name">سين جيم</span>
             <span class="gc-tag">ست فئات وأسئلة بنقاط: اختاروا، جاوبوا، واجمعوا</span>
-            <span class="gc-chips"><i>❓ 12 فئة</i><i>⚡ مضاعفة</i><i>🎡 عجلة الحظ</i><i>🔄 تبديل</i><i>💡 تلميح</i></span>
+            <span class="gc-chips"><i>🚩 أعلام وصور</i><i>⚡ مضاعفة</i><i>🎡 عجلة الحظ</i><i>🔄 تبديل</i><i>💡 تلميح</i></span>
             <span class="gc-go">يلا نلعب <b>←</b></span>
           </span>
           <span class="gc-live" id="homeSjLive" hidden>● لعبة شغالة</span>
@@ -541,7 +542,7 @@
         </section>
 
         <section class="card span2" data-g="sj">
-          <h2>الفئات (اختاروا 6 من 12)</h2>
+          <h2>الفئات (اختاروا 6)</h2>
           <div class="sj-cats" id="sjCats"></div>
           <div class="row">
             <span class="note" id="sjCatNote"></span>
@@ -720,6 +721,7 @@
       </div>
       <div class="pl-q" id="plQ" hidden>
         <span class="pl-qletter" id="plLetter"></span>
+        <img class="pl-qimg" id="plQImg" alt="" hidden onerror="this.hidden=true">
         <p><span class="qk">س:</span> <span id="plQText"></span></p>
       </div>
       <div class="pl-fx" id="plFx" hidden></div>
@@ -764,15 +766,15 @@
   <canvas id="fx" aria-hidden="true"></canvas>
 </div>
 <!-- APP END -->
-<script src="questions.js?v=1795714573"></script>
-<script src="questions_more.js?v=1795714573"></script>
-<script src="questions_nice.js?v=1795714573"></script>
-<script src="questions_hard.js?v=1795714573"></script>
-<script src="questions_sj.js?v=1795714573"></script>
-<script src="vendor/mqtt.min.js?v=1795714573"></script>
-<script src="rtc.js?v=1795714573"></script>
-<script src="bell.js?v=1795714573"></script>
-<script src="sj.js?v=1795714573"></script>
-<script src="app.js?v=1795714573"></script>
+<script src="questions.js?v=1795715227"></script>
+<script src="questions_more.js?v=1795715227"></script>
+<script src="questions_nice.js?v=1795715227"></script>
+<script src="questions_hard.js?v=1795715227"></script>
+<script src="questions_sj.js?v=1795715227"></script>
+<script src="vendor/mqtt.min.js?v=1795715227"></script>
+<script src="rtc.js?v=1795715227"></script>
+<script src="bell.js?v=1795715227"></script>
+<script src="sj.js?v=1795715227"></script>
+<script src="app.js?v=1795715227"></script>
 </body>
 </html>

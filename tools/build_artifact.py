@@ -71,12 +71,16 @@ for c in sj_cats:
         items = c["q"].get(lv, [])
         if len(items) != 5:
             problems.append(f"[سين جيم {c['id']} {lv}] لازم 5 أسئلة وفيه {len(items)}")
-        for q, a in items:
+        for item in items:
+            q, a = item[0], item[1]
+            im = item[2] if len(item) > 2 else ""
             if not q or not a:
                 problems.append(f"[سين جيم {c['id']} {lv}] سؤال أو إجابة فاضية")
-            if q in sj_seen:
-                problems.append(f"[سين جيم] مكرر: {q}")
-            sj_seen.add(q)
+            if im and not (root / "flags" / f"{im}.svg").exists():
+                problems.append(f"[سين جيم {c['id']} {lv}] صورة ناقصة: {im}")
+            if (q, im) in sj_seen:
+                problems.append(f"[سين جيم] مكرر: {q} {im}")
+            sj_seen.add((q, im))
 print(f"سين جيم: {len(sj_cats)} فئة، {len(sj_seen)} سؤال")
 if problems:
     print("\n".join(problems))
