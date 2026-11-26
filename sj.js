@@ -19,6 +19,7 @@
   let state = null;           // اللعبة الحالية
   let open = -1;              // الخلية المفتوحة (-1 = ما فيه سؤال)
   let revealed = false;
+  let hintOpen = false;
   const timer = { total: 0, left: 0, running: false, raf: 0, last: 0, lastWhole: 0 };
 
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } };
@@ -178,6 +179,19 @@
   }
 
   /* ================= السؤال ================= */
+  // تلميح تلقائي من الإجابة: أول حرف وعدد الحروف (أو عدد الخانات للأرقام)
+  function hintFor(ans) {
+    const a = String(ans || "").replace(/\(.*?\)/g, "").trim();
+    const letters = (a.match(/[\u0621-\u064A]/g) || []);
+    if (!letters.length) {
+      const d = (a.match(/\d/g) || []).length;
+      return d ? `رقم من ${d} ${d > 2 ? "خانات" : "خانتين"}` : "ما فيه تلميح";
+    }
+    const words = a.split(/\s+/).filter(Boolean);
+    let first = words[0].replace(/^ال/, "") || words[0];
+    first = first.replace(/[^\u0621-\u064A]/g, "").charAt(0) || letters[0];
+    return `يبدأ بحرف «${first}» · ${letters.length} حروف` + (words.length > 1 ? ` · ${words.length} كلمات` : "");
+  }
   function lfOn() { return ctx.lifelines(); }
   function renderQuestion() {
     const c = state.cells[open];
@@ -196,18 +210,22 @@
     const lf = state.lf[t];
     const showLf = lfOn() && !revealed;
     $("#sjLf").hidden = !showLf;
+    $("#sjHint").disabled = !lf.hint || hintOpen;
+    $("#sjHint").textContent = lf.hint ? (hintOpen ? "💡 التلميح ظاهر" : "💡 تلميح") : "💡 ✕";
+    $("#sjHintBox").hidden = !hintOpen;
+    $("#sjHintText").textContent = hintOpen ? hintFor(c.a) : "";
     $("#sjDbl").disabled = !lf.dbl || mult > 1;
-    $("#sjDbl").textContent = lf.dbl ? (mult > 1 ? "⚡ النقاط مضاعفة" : "⚡ ضاعف النقاط") : "⚡ استخدمتوها";
+    $("#sjDbl").textContent = lf.dbl ? (mult > 1 ? "⚡ النقاط مضاعفة" : "⚡ ضاعف") : "⚡ ✕";
     const alts = c.alts || [];
     $("#sjSwap").disabled = !lf.swap || !alts.length;
-    $("#sjSwap").textContent = lf.swap ? (alts.length ? "🔄 بدّل السؤال" : "🔄 ما فيه بديل") : "🔄 استخدمتوها";
+    $("#sjSwap").textContent = lf.swap ? (alts.length ? "🔄 بدّل" : "🔄 ما فيه بديل") : "🔄 ✕";
     $("#sjOk0").textContent = `✓ ${nm(0)}`;
     $("#sjOk1").textContent = `✓ ${nm(1)}`;
   }
 
   function openCell(i) {
     if (!state || state.used[i] >= 0 || open >= 0) return;
-    open = i; revealed = false; state.mult = 1;
+    open = i; revealed = false; hintOpen = false; state.mult = 1;
     renderQuestion();
     $("#sjModal").hidden = false;
     ctx.sound("open");
@@ -218,7 +236,7 @@
   function closeQuestion() {
     timerStop();
     timer.total = 0;
-    open = -1; revealed = false;
+    open = -1; revealed = false; hintOpen = false;
     if (state) state.mult = 1;
     $("#sjModal").hidden = true;
     ctx.sync(true);
@@ -271,6 +289,13 @@
     ctx.sound("open");
     persist(); renderQuestion(); ctx.sync(true);
   }
+  function useHint() {
+    const lf = state.lf[state.turn];
+    if (open < 0 || revealed || !lf.hint || hintOpen) return;
+    lf.hint = false; hintOpen = true;
+    ctx.sound("open");
+    persist(); renderQuestion(); ctx.sync(true);
+  }
   function useSwap() {
     const lf = state.lf[state.turn];
     const c = state.cells[open];
@@ -278,6 +303,7 @@
     const nx = c.alts.shift();
     lf.swap = false;
     c.q = nx[0]; c.a = nx[1];
+    hintOpen = false;
     persist();
     renderQuestion();
     timerStart(ctx.timerSec());
@@ -325,7 +351,8 @@
         u: state.used.map((u) => (u < 0 ? "." : u === 0 ? "a" : u === 1 ? "b" : "x")).join(""),
         cur: open,
         pt: live ? pts(open) * (state.mult || 1) : 0,
-        lf: state.lf.map((l) => [l.dbl ? 1 : 0, l.swap ? 1 : 0]),
+        lf: state.lf.map((l) => [l.dbl ? 1 : 0, l.swap ? 1 : 0, l.hint ? 1 : 0]),
+        hn: live && hintOpen && !revealed ? hintFor(c.a) : "",
         an: live && revealed ? c.a.slice(0, 80) : "",
         ls: state.last || "",
       },
@@ -351,7 +378,7 @@
       used: new Array(NCELL).fill(-1),
       score: [0, 0],
       turn: 0,
-      lf: [{ dbl: true, swap: true }, { dbl: true, swap: true }],
+      lf: [{ dbl: true, swap: true, hint: true }, { dbl: true, swap: true, hint: true }],
       mult: 1,
       over: false,
       last: "",
@@ -378,7 +405,7 @@
     const s = load(KEY, null);
     state = valid(s) ? s : null;
     if (state) {
-      state.lf = state.lf.map((l) => ({ dbl: !!(l && l.dbl), swap: !!(l && l.swap) }));
+      state.lf = state.lf.map((l) => ({ dbl: !!(l && l.dbl), swap: !!(l && l.swap), hint: l && l.hint !== undefined ? !!l.hint : true }));
       state.mult = 1;
     }
     $("#sjBoard").addEventListener("click", (e) => {
@@ -398,6 +425,7 @@
     $("#sjNobody").onclick = () => finish(-1);
     $("#sjDbl").onclick = useDouble;
     $("#sjSwap").onclick = useSwap;
+    $("#sjHint").onclick = useHint;
     $("#sjTimerText").onclick = timerToggle;
     $("#sjBack").onclick = () => closeQuestion();
     $("#sjWinBoard").onclick = () => { $("#sjWin").hidden = true; };

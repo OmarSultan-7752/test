@@ -438,7 +438,7 @@
     if (s.ph === "live" && s.qt) {
       qBox.hidden = false;
       $("#plLetter").textContent = String(Math.max(0, +sj.pt || 0));
-      $("#plQText").textContent = clean(s.qt, 200);
+      $("#plQText").textContent = clean(s.qt, 200) + (sj.hn ? "\n💡 " + clean(sj.hn, 60) : "");
       if (pl.sjQ !== s.qt && ctx.sound) ctx.sound("open");
       pl.sjQ = s.qt;
     } else { qBox.hidden = true; pl.sjQ = ""; }
@@ -447,7 +447,7 @@
     const lf = Array.isArray(sj.lf) && Array.isArray(sj.lf[mine]) ? sj.lf[mine] : [0, 0];
     const fxBox = $("#plFx");
     fxBox.innerHTML = "";
-    [[lf[0], "⚡ عندكم مضاعفة نقاط"], [lf[1], "🔄 عندكم تبديل سؤال"]].forEach(([on, t]) => {
+    [[lf[0], "⚡ عندكم مضاعفة نقاط"], [lf[1], "🔄 عندكم تبديل سؤال"], [lf[2], "💡 عندكم تلميح"]].forEach(([on, t]) => {
       if (!on) return;
       const c = document.createElement("span"); c.className = "ok"; c.textContent = t; fxBox.append(c);
     });

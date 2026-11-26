@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- HEAD START -->
 <meta name="claude:viewport-fit-sides" content="cover">
-<title>مسابقة حروف</title>
+<title>مسابقات ودق الاستديو</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&family=Changa:wght@600;800&family=Lalezar&family=Rakkas&family=Noto+Kufi+Arabic:wght@700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <!-- HEAD END -->
-<link rel="stylesheet" href="style.css?v=1795712533">
+<link rel="stylesheet" href="style.css?v=1795712891">
 </head>
 <body>
 <!-- APP START -->
@@ -139,6 +139,7 @@
         <button class="sj-timer-text" id="sjTimerText" title="اضغط لإيقاف المؤقت أو تشغيله"></button>
       </div>
       <p class="q-text sj-qtext" id="sjQText"></p>
+      <div class="sj-hint" id="sjHintBox" hidden>💡 <span id="sjHintText"></span></div>
       <div class="answer" id="sjAnswer">
         <button class="reveal" id="sjReveal">إظهار الإجابة</button>
         <div class="answer-text"><span class="qk">ج:</span> <span id="sjAnsText"></span></div>
@@ -146,6 +147,7 @@
       <div class="sj-lf" id="sjLf">
         <button class="secondary" id="sjDbl"></button>
         <button class="secondary" id="sjSwap"></button>
+        <button class="secondary" id="sjHint"></button>
       </div>
       <div class="q-actions sj-judge">
         <button class="team-btn ta" id="sjOk0"></button>
@@ -359,7 +361,7 @@
     <div class="home-glow" aria-hidden="true"><i></i><i></i><i></i></div>
     <div class="home-inner">
       <header class="home-head">
-        <div class="home-kicker">✦ مسابقات العيلة ✦</div>
+        <div class="home-kicker">✦ مسابقات ودق الاستديو ✦</div>
         <h1 class="home-title">وش نلعب الليلة؟</h1>
       </header>
       <div class="home-cards">
@@ -414,7 +416,7 @@
           <span class="gc-body">
             <span class="gc-name">سين جيم</span>
             <span class="gc-tag">ست فئات وأسئلة بنقاط: اختاروا، جاوبوا، واجمعوا</span>
-            <span class="gc-chips"><i>❓ 12 فئة</i><i>⚡ مضاعفة</i><i>🔄 تبديل</i></span>
+            <span class="gc-chips"><i>❓ 12 فئة</i><i>⚡ مضاعفة</i><i>🔄 تبديل</i><i>💡 تلميح</i></span>
             <span class="gc-go">يلا نلعب <b>←</b></span>
           </span>
           <span class="gc-live" id="homeSjLive" hidden>● لعبة شغالة</span>
@@ -518,7 +520,7 @@
             <button data-v="on">شغّالة</button>
             <button data-v="off">طافية</button>
           </div>
-          <p class="note">كل فريق مرة وحدة: ⚡ يضاعف نقاط سؤاله، 🔄 يبدّل السؤال.</p>
+          <p class="note">كل فريق مرة وحدة من كل واحدة: ⚡ يضاعف نقاط سؤاله، 🔄 يبدّل السؤال، 💡 يطلع تلميح (أول حرف وعدد الحروف).</p>
         </section>
 
         <section class="card">
@@ -726,15 +728,15 @@
   <canvas id="fx" aria-hidden="true"></canvas>
 </div>
 <!-- APP END -->
-<script src="questions.js?v=1795712533"></script>
-<script src="questions_more.js?v=1795712533"></script>
-<script src="questions_nice.js?v=1795712533"></script>
-<script src="questions_hard.js?v=1795712533"></script>
-<script src="questions_sj.js?v=1795712533"></script>
-<script src="vendor/mqtt.min.js?v=1795712533"></script>
-<script src="rtc.js?v=1795712533"></script>
-<script src="bell.js?v=1795712533"></script>
-<script src="sj.js?v=1795712533"></script>
-<script src="app.js?v=1795712533"></script>
+<script src="questions.js?v=1795712891"></script>
+<script src="questions_more.js?v=1795712891"></script>
+<script src="questions_nice.js?v=1795712891"></script>
+<script src="questions_hard.js?v=1795712891"></script>
+<script src="questions_sj.js?v=1795712891"></script>
+<script src="vendor/mqtt.min.js?v=1795712891"></script>
+<script src="rtc.js?v=1795712891"></script>
+<script src="bell.js?v=1795712891"></script>
+<script src="sj.js?v=1795712891"></script>
+<script src="app.js?v=1795712891"></script>
 </body>
 </html>

@@ -1778,7 +1778,7 @@
   $("#btnSettings").onclick = () => { if (!anyModalOpen() && !targetMode) openSetup(false); };
   $("#btnEnd").onclick = () => {
     if (anyModalOpen() || targetMode) return;
-    askConfirm("ننهي اللعبة؟", "اللوحة والنتيجة تنمسح وترجعون للقائمة.", "إي، أنهِ اللعبة", () => { newMatch(); openHome(); queueSync(true); });
+    askConfirm("ننهي اللعبة؟", "اللوحة والنتيجة تنمسح وترجعون لشاشة الإعدادات.", "إي، أنهِ اللعبة", () => { newMatch(); openSetup(true, "letters"); queueSync(true); });
   };
   $("#btnBell").onclick = () => { if (Bell && !anyModalOpen() && !targetMode) Bell.openPanel(); };
   $("#btnPlayerMode").onclick = () => { if (Bell) Bell.openPlayer(); };
@@ -1877,7 +1877,7 @@
       confirm: askConfirm,
       openSetup: () => openSetup(false),
       openBell: () => { if (Bell) Bell.openPanel(); },
-      endGame: () => { SJ.end(); setActive("letters"); openHome(); queueSync(true); },
+      endGame: () => { SJ.end(); setActive("letters"); openSetup(true, "sj"); queueSync(true); },
     });
   } else {
     $("#sjBell").hidden = true;
@@ -1892,7 +1892,7 @@
   const SPLASHES = {
     letters: { tiles: ["ح", "ر", "و", "ف"], tag: "جاوب صح، خذ الخلية، وكمّل طريقك", bg: LETTERS },
     sj: { tiles: ["س", "ج", "؟"], tag: "ست فئات، وأسئلة بنقاط… مين الأذكى؟", bg: ["س", "ج", "؟", "؟", "٢٠٠", "٤٠٠", "٦٠٠"] },
-    home: { tiles: ["ي", "ل", "ا"], tag: "مسابقات العيلة", bg: LETTERS },
+    home: { tiles: ["ي", "ل", "ا"], tag: "مسابقات ودق الاستديو", bg: LETTERS },
   };
   let splashBusy = false;
   function playSplash(kind, done) {

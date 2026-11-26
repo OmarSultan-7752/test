@@ -1936,3 +1936,8 @@ body[data-world="sj"] .swatch.on { box-shadow: 0 0 0 3px #fff, 0 0 16px var(--c)
 .splash[data-game="sj"] .st b { font-family: "Rakkas", var(--f-display); }
 .splash[data-game="sj"] .splash-tag { color: #ffd0ea; }
 .splash[data-game="sj"] .splash-tap { border-color: rgba(255, 160, 210, .5); }
+
+.sj-lf { grid-template-columns: repeat(3, 1fr); }
+.sj-lf .secondary { font-size: 14px; padding-inline: 4px; }
+.sj-hint { margin: 0 auto 12px; width: fit-content; max-width: 100%; padding: 6px 16px; border-radius: 999px; background: rgba(255, 201, 77, .14); border: 1px solid rgba(255, 201, 77, .5); color: #ffe7a8; font-weight: 800; font-size: 15px; animation: popIn .35s ease; }
+.pl-q p { white-space: pre-line; }
