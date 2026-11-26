@@ -285,6 +285,12 @@
     }
     tickTimer();
 
+    // سين جيم: لوحة الفئات والسؤال (بدون جرس)
+    if (s.g === "sj" && s.sj && typeof s.sj === "object") { plRenderSj(s, teams, mine); return; }
+    { const lg = $(".player-top .logo"); if (lg) lg.textContent = "حروف"; }
+    $("#plSj").hidden = true; $("#plBoard").toggleAttribute("hidden", false); $("#plQ").classList.remove("sj");
+    pl.sjKey = ""; pl.sjMine = -1; pl.sjOpp = -1; pl.sjQ = "";
+
     // شارات التخريب اللي علينا
     const fxs = s.fx || {};
     const chips = [];
@@ -375,6 +381,82 @@
     txt.textContent = label;
     st.textContent = status;
     btn.disabled = mode !== "armed";
+  }
+
+  const SJ_ROWS = [200, 200, 400, 400, 600, 600];
+  function plRenderSj(s, teams, mine) {
+    const sj = s.sj;
+    const lg = $(".player-top .logo"); if (lg) lg.textContent = "سين جيم";
+    $("#plBoard").toggleAttribute("hidden", true);
+    $("#plConn").textContent = "🟢 متصل";
+    pl.boardKey = ""; pl.mineCnt = -1; pl.oppCnt = -1;
+    $("#plSabMenu").hidden = true;
+    pl.sbKey = "";
+
+    // اللوحة
+    const cats = Array.isArray(sj.c) ? sj.c.slice(0, 6) : [];
+    const u = clean(sj.u, 36);
+    const cur = Number.isInteger(sj.cur) ? sj.cur : -1;
+    const grid = $("#plSj");
+    grid.hidden = false;
+    const key = JSON.stringify([cats, u, cur]);
+    if (key !== pl.sjKey) {
+      pl.sjKey = key;
+      grid.innerHTML = "";
+      cats.forEach((c) => {
+        const h = document.createElement("div");
+        h.className = "pl-sj-h";
+        const ic = document.createElement("span"); ic.textContent = clean(c && c[0], 4);
+        const nm = document.createElement("b"); nm.textContent = clean(c && c[1], 24);
+        h.append(ic, nm);
+        grid.append(h);
+      });
+      for (let i = 0; i < 36; i++) {
+        const ch = u[i] || ".";
+        const d = document.createElement("div");
+        d.className = "pl-sj-c" + (ch === "a" ? " a" : ch === "b" ? " b" : ch === "x" ? " x" : "") + (i === cur ? " cur" : "");
+        d.textContent = ch === "." ? String(SJ_ROWS[Math.floor(i / 6)]) : ch === "x" ? "✕" : "✓";
+        grid.append(d);
+      }
+      const mc = (u.match(mine === 0 ? /a/g : /b/g) || []).length, oc = (u.match(mine === 0 ? /b/g : /a/g) || []).length;
+      if (pl.sjMine >= 0 && ctx.sound) {
+        if (mc > pl.sjMine) ctx.sound("correct");
+        else if (oc > pl.sjOpp) ctx.sound("wrong");
+        else if (/x/.test(u) && u.split("x").length - 1 > (pl.sjX || 0)) ctx.sound("wrong");
+      }
+      pl.sjMine = mc; pl.sjOpp = oc; pl.sjX = u.split("x").length - 1;
+    }
+
+    // السؤال (كامل، بدون كتابة تدريجية)
+    const qBox = $("#plQ");
+    qBox.classList.add("sj");
+    pl.qt = ""; pl.qKey = "";
+    if (s.ph === "live" && s.qt) {
+      qBox.hidden = false;
+      $("#plLetter").textContent = String(Math.max(0, +sj.pt || 0));
+      $("#plQText").textContent = clean(s.qt, 200);
+      if (pl.sjQ !== s.qt && ctx.sound) ctx.sound("open");
+      pl.sjQ = s.qt;
+    } else { qBox.hidden = true; pl.sjQ = ""; }
+
+    // وسائل المساعدة
+    const lf = Array.isArray(sj.lf) && Array.isArray(sj.lf[mine]) ? sj.lf[mine] : [0, 0];
+    const fxBox = $("#plFx");
+    fxBox.innerHTML = "";
+    [[lf[0], "⚡ عندكم مضاعفة نقاط"], [lf[1], "🔄 عندكم تبديل سؤال"]].forEach(([on, t]) => {
+      if (!on) return;
+      const c = document.createElement("span"); c.className = "ok"; c.textContent = t; fxBox.append(c);
+    });
+    fxBox.hidden = !fxBox.childElementCount;
+
+    // الحالة (ما فيه جرس في سين جيم)
+    const box = $("#plBuzz");
+    box.dataset.mode = "idle";
+    $("#plBtn").hidden = true;
+    $("#plBtn").disabled = true;
+    const an = clean(sj.an, 80);
+    const last = clean(sj.ls, 60);
+    $("#plStatus").textContent = an ? `الإجابة: ${an}` : (!qBox.hidden ? clean(s.msg, 90) : (last ? last + " · " : "") + clean(s.msg, 90)) || "…";
   }
 
   function tickTimer() {
@@ -481,7 +563,7 @@
 
   function plLeave() {
     clearInterval(pl.tick); clearTimeout(pl.waitTimer); clearTimeout(pl.failTimer);
-    pl.everHost = false; pl.tm = null; pl.tmKey = ""; pl.lastMode = "";
+    pl.everHost = false; pl.tm = null; pl.tmKey = ""; pl.lastMode = ""; pl.sjKey = ""; pl.sjQ = ""; pl.sjMine = -1; pl.sjOpp = -1;
     if (pl.off) { try { pl.off(); } catch (_) {} pl.off = null; }
     if (pl.ns) {
       quiet(pl.ns.presence({ app: null, role: null, code: null, name: null, team: null, buzz: null }));

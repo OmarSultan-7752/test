@@ -62,16 +62,38 @@ if problems:
     print("\n".join(problems))
     sys.exit(1)
 
+sj_src = (root / "questions_sj.js").read_text(encoding="utf-8")
+m = re.search(r"window\.SJ_CATEGORIES\s*=\s*(\[.*\])\s*;", sj_src, re.S)
+sj_cats = json.loads(m.group(1))
+sj_seen = set()
+for c in sj_cats:
+    for lv in ("200", "400", "600"):
+        items = c["q"].get(lv, [])
+        if len(items) != 5:
+            problems.append(f"[سين جيم {c['id']} {lv}] لازم 5 أسئلة وفيه {len(items)}")
+        for q, a in items:
+            if not q or not a:
+                problems.append(f"[سين جيم {c['id']} {lv}] سؤال أو إجابة فاضية")
+            if q in sj_seen:
+                problems.append(f"[سين جيم] مكرر: {q}")
+            sj_seen.add(q)
+print(f"سين جيم: {len(sj_cats)} فئة، {len(sj_seen)} سؤال")
+if problems:
+    print("\n".join(problems))
+    sys.exit(1)
+
 html = (root / "index.html").read_text(encoding="utf-8")
 head = re.search(r"<!-- HEAD START -->(.*?)<!-- HEAD END -->", html, re.S).group(1).strip()
 app = re.search(r"<!-- APP START -->(.*?)<!-- APP END -->", html, re.S).group(1).strip()
 css = (root / "style.css").read_text(encoding="utf-8")
 bell = (root / "bell.js").read_text(encoding="utf-8")
+sjjs = (root / "sj.js").read_text(encoding="utf-8")
 js = (root / "app.js").read_text(encoding="utf-8")
 
 qs = ("window.QUESTION_BANK = " + json.dumps(bank, ensure_ascii=False, separators=(",", ":")) + ";\n"
-      "window.QUESTION_BANK_HARD = " + json.dumps(hard, ensure_ascii=False, separators=(",", ":")) + ";")
-out = f"{head}\n<style>\n{css}\n</style>\n{app}\n<script>\n{qs}\n</script>\n<script>\n{bell}\n</script>\n<script>\n{js}\n</script>\n"
+      "window.QUESTION_BANK_HARD = " + json.dumps(hard, ensure_ascii=False, separators=(",", ":")) + ";\n"
+      "window.SJ_CATEGORIES = " + json.dumps(sj_cats, ensure_ascii=False, separators=(",", ":")) + ";")
+out = f"{head}\n<style>\n{css}\n</style>\n{app}\n<script>\n{qs}\n</script>\n<script>\n{bell}\n</script>\n<script>\n{sjjs}\n</script>\n<script>\n{js}\n</script>\n"
 dest = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else root / "dist" / "index.html")
 dest.parent.mkdir(parents=True, exist_ok=True)
 dest.write_text(out, encoding="utf-8")

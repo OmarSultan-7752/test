@@ -24,7 +24,10 @@
   const DEFAULTS = {
     teams: [{ name: "الفريق الأخضر", color: "green" }, { name: "الفريق البرتقالي", color: "orange" }],
     size: 5, timer: 20, target: 2, mode: "bank", font: "ruqaa", play: "turn", level: "mixed", sab: "on",
+    game: "letters", sjCats: ["countries", "geo", "animals", "islam", "food", "riddles"], sjlf: "on",
   };
+  const SJ_CATS = window.SJ_CATEGORIES || [];
+  const SJ = window.HaroofSJ || null;
   const BANK = window.QUESTION_BANK || {};
   const MORE = window.QUESTION_BANK_MORE || {};
   for (const L in MORE) BANK[L] = (BANK[L] || []).concat(MORE[L]);
@@ -60,6 +63,10 @@
     if (!["turn", "race"].includes(out.play)) out.play = "turn";
     if (!["normal", "mixed", "hard"].includes(out.level)) out.level = "mixed";
     if (!["on", "off"].includes(out.sab)) out.sab = "on";
+    if (!["letters", "sj"].includes(out.game) || !SJ) out.game = "letters";
+    if (!["on", "off"].includes(out.sjlf)) out.sjlf = "on";
+    out.sjCats = Array.isArray(out.sjCats) ? [...new Set(out.sjCats)].filter((id) => SJ_CATS.some((c) => c.id === id)).slice(0, 6) : [];
+    if (out.sjCats.length !== 6) out.sjCats = DEFAULTS.sjCats.slice();
     delete out.sound;
     return out;
   }
@@ -85,6 +92,15 @@
     game.usedSab = game.usedSab || [[], []];
   }
 
+  // اللعبة الشغالة الحين: letters أو sj
+  let activeGame = store.get("active", "letters") === "sj" && SJ ? "sj" : "letters";
+  function setActive(g) {
+    activeGame = g === "sj" && SJ ? "sj" : "letters";
+    store.set("active", activeGame);
+    $("#game").hidden = activeGame === "sj";
+    if (activeGame === "sj") SJ.show(); else SJ && SJ.hide();
+    updateBellBadge();
+  }
   const saveSettings = () => store.set("settings", settings);
   const saveGame = () => store.set("game", game);
 
@@ -1021,11 +1037,13 @@
   }
   function updateBellBadge() {
     const b = $("#bellBadge");
-    if (!Bell) { $("#btnBell").hidden = true; return; }
+    if (!Bell) { $("#btnBell").hidden = true; $("#sjBell").hidden = true; return; }
     const n = Bell.isOn() ? Bell.playerCount() : 0;
     b.hidden = !Bell.isOn();
     b.textContent = Bell.isOn() ? String(n) : "";
     $("#btnBell").classList.toggle("on", Bell.isOn());
+    const sb = $("#sjBellBadge");
+    if (sb) { sb.hidden = !Bell.isOn(); sb.textContent = Bell.isOn() ? String(n) : ""; $("#sjBell").classList.toggle("on", Bell.isOn()); }
   }
 
   /* ---- شاشة الجرس على جوال واحد: نصف لكل فريق، وأول من يضغط يقفل ---- */
@@ -1321,7 +1339,9 @@
     return settings.play === "turn" ? qStatusLine() : "أول واحد يضغط يجاوب";
   }
   function buildView() {
+    if (activeGame === "sj" && SJ) return SJ.buildView();
     return {
+      g: "hex", sj: null,
       n: game.size,
       l: game.letters.join(""),
       o: game.owners.map((o) => (o < 0 ? "." : o === 0 ? "a" : "b")).join(""),
@@ -1404,17 +1424,12 @@
   const NUMERIC = ["size", "target"];
 
   let setupFresh = true;   // true = ما فيه لعبة شغالة (أول مرة أو بعد الإنهاء)
+  const hasRunning = () => !setupFresh && (activeGame === "sj" ? !!(SJ && SJ.hasGame()) : !!game);
   function openSetup(fresh) {
     setupFresh = !!fresh;
     draft = clone(settings);
+    if (hasRunning()) draft.game = activeGame;
     renderSetup();
-    const inGame = !setupFresh && !!game;
-    $("#btnResume").hidden = !inGame;
-    $("#btnBack").hidden = !inGame;
-    $("#setupTop").hidden = !inGame;
-    const st = $("#btnStart");
-    st.textContent = inGame ? "إنهاء اللعبة وبدء مباراة جديدة" : "ابدأ مباراة جديدة";
-    st.classList.toggle("danger", inGame);
     $("#setup").hidden = false;
     $("#setup").scrollTop = 0;
   }
@@ -1458,6 +1473,7 @@
       : draft.level === "hard"
         ? "أسئلة صعبة (لو حرف أسئلته الصعبة قليلة تنضاف العادية)."
         : "خليط: نص الأسئلة تقريباً صعبة.";
+    renderSetupGame();
     // معاينة الألوان في الشعار
     const root = document.documentElement.style;
     ["a", "b"].forEach((k, t) => {
@@ -1465,6 +1481,60 @@
       root.setProperty(`--${k}`, c.c); root.setProperty(`--${k}-2`, c.d); root.setProperty(`--${k}-l`, c.l);
     });
   }
+
+  /* ---- اختيار اللعبة (حروف / سين جيم) وفئات سين جيم ---- */
+  function renderSetupGame() {
+    if (!SJ) draft.game = "letters";
+    const g = draft.game;
+    document.body.dataset.game = g;
+    $$("[data-g]").forEach((el) => { el.hidden = el.dataset.g !== g; });
+    const gameSeg = $('.seg[data-key="game"]');
+    if (gameSeg) gameSeg.closest(".card").hidden = !SJ;
+    $("#setupLogo").textContent = g === "sj" ? "سين جيم" : "حروف";
+    $("#setupTag").textContent = g === "sj"
+      ? "ست فئات وأسئلة بنقاط: اختاروا، جاوبوا، واجمعوا أكثر نقاط."
+      : "جاوب صح، خذ الخلية، وكمّل طريقك قبل الخصم.";
+    $("#gameNote").textContent = g === "sj"
+      ? "لوحة 6 فئات × 6 أسئلة (200 و400 و600). الفريقين بالدور، والجوالات تشوف اللوحة والسؤال."
+      : "لوحة الخلايا السداسية: كل فريق يوصل ضلعه قبل الثاني.";
+    const sjBox = $("#sjCats");
+    if (sjBox) {
+      sjBox.innerHTML = "";
+      SJ_CATS.forEach((c) => {
+        const on = draft.sjCats.includes(c.id);
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "sj-chip" + (on ? " on" : "");
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+        const ic = document.createElement("span"); ic.className = "sj-chip-ic"; ic.textContent = c.icon;
+        const tx = document.createElement("span"); tx.textContent = c.name;
+        b.append(ic, tx);
+        b.onclick = () => {
+          if (on) draft.sjCats = draft.sjCats.filter((id) => id !== c.id);
+          else if (draft.sjCats.length < 6) draft.sjCats = draft.sjCats.concat(c.id);
+          else { $("#sjCatNote").textContent = "اخترتوا 6 بالفعل: شيلوا وحدة أول."; return; }
+          renderSetup();
+        };
+        sjBox.append(b);
+      });
+      const n = draft.sjCats.length;
+      $("#sjCatNote").textContent = n === 6 ? "✓ جاهزين: 6 فئات" : `اختاروا ${6 - n} ${6 - n > 2 ? "فئات" : "فئة"} كمان (${n} من 6)`;
+    }
+    const running = hasRunning();
+    const same = activeGame === g;
+    $("#btnResume").hidden = !(running && same);
+    $("#btnBack").hidden = !(running && same);
+    $("#setupTop").hidden = !(running && same);
+    const st = $("#btnStart");
+    st.textContent = running ? "إنهاء اللعبة وبدء مباراة جديدة" : "ابدأ مباراة جديدة";
+    st.classList.toggle("danger", running);
+    st.disabled = g === "sj" && draft.sjCats.length !== 6;
+  }
+  if ($("#sjCatRand")) $("#sjCatRand").onclick = () => {
+    draft.sjCats = shuffle(SJ_CATS.map((c) => c.id)).slice(0, 6);
+    Sound.play("shuffle");
+    renderSetup();
+  };
 
   function pickColor(t, key) {
     const other = 1 - t;
@@ -1535,14 +1605,37 @@
   Sound.onState(showSoundState);
   $("#btnStart").onclick = () => {
     Sound.unlock();
-    const hasProgress = game && (game.score[0] || game.score[1] || game.owners.some((o) => o !== -1));
-    const go = () => { commitDraft(); newMatch(); Sound.play("shuffle"); };
+    const hasProgress = activeGame === "sj"
+      ? !!(SJ && SJ.hasProgress())
+      : !!(game && (game.score[0] || game.score[1] || game.owners.some((o) => o !== -1)));
+    const g = draft.game;
+    const go = () => {
+      commitDraft();
+      if (g === "sj" && SJ) {
+        if (Bell) Bell.questionClosed();
+        SJ.start(settings.sjCats);
+        setActive("sj");
+      } else {
+        setActive("letters");
+        newMatch();
+        queueSync(true);
+      }
+      Sound.play("shuffle");
+    };
     if (!setupFresh && hasProgress) {
       askConfirm("ننهي اللعبة الحالية؟", "اللوحة والنتيجة تنمسح، وتبدأ مباراة جديدة بالإعدادات هذي.", "إي، أنهِ وابدأ", go);
     } else go();
   };
   $("#btnBack").onclick = () => $("#btnResume").click();
   $("#btnResume").onclick = () => {
+    if (activeGame === "sj") {
+      draft.game = "sj";
+      commitDraft();
+      SJ.refresh();
+      queueSync(true);
+      return;
+    }
+    draft.game = "letters";
     const sizeChanged = draft.size !== game.size;
     commitDraft();
     if (sizeChanged) newRound(game.turn);
@@ -1681,6 +1774,7 @@
   document.addEventListener("keydown", (e) => {
     const tag = e.target.tagName;
     if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    if (activeGame === "sj") return;
     if (!$("#qModal").hidden && q) {
       if (e.key === "Escape") { cancelQuestion(); return; }
       if (q.phase === "prep") {
@@ -1744,6 +1838,23 @@
     $("#btnBell").hidden = true;
     $("#btnPlayerMode").hidden = true;
   }
+  if (SJ) {
+    SJ.init({
+      teams: () => settings.teams.map((t) => ({ n: t.name, c: COLORS[t.color].c, l: COLORS[t.color].l, d: COLORS[t.color].d })),
+      sound: (n) => Sound.play(n),
+      fx: FX,
+      sync: (u) => queueSync(!!u),
+      timerSec: () => settings.timer,
+      lifelines: () => settings.sjlf === "on",
+      blocked: () => anyModalOpen() || !$("#setup").hidden,
+      confirm: askConfirm,
+      openSetup: () => openSetup(false),
+      openBell: () => { if (Bell) Bell.openPanel(); },
+      endGame: () => { SJ.end(); setActive("letters"); openSetup(true); queueSync(true); },
+    });
+  } else {
+    $("#sjBell").hidden = true;
+  }
   updateBellBadge();
   const playerOnly = location.hash === "#bell";
   // أول فتح في الجلسة = نبدأ من شاشة الإعدادات (التحديث وسط اللعب يرجعك للوحة مباشرة)
@@ -1795,7 +1906,10 @@
       else if (Date.now() - t0 > 1400) end();
     });
   })();
-  if (game) {
+  setActive(activeGame === "sj" && SJ && SJ.hasGame() ? "sj" : "letters");
+  if (activeGame === "sj") {
+    if (newSession && !playerOnly) openSetup(!SJ.hasProgress());
+  } else if (game) {
     renderBoard(true);
     if (newSession && !playerOnly) {
       const hasProgress = !game.roundOver && (game.score[0] || game.score[1] || game.owners.some((o) => o !== -1));

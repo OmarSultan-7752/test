@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&family=Lalezar&family=Noto+Kufi+Arabic:wght@700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <!-- HEAD END -->
-<link rel="stylesheet" href="style.css?v=1795623371">
+<link rel="stylesheet" href="style.css?v=1795710554">
 </head>
 <body>
 <!-- APP START -->
@@ -89,6 +89,83 @@
       </button>
     </nav>
   </section>
+
+  <!-- ===== شاشة سين جيم ===== -->
+  <section class="sj" id="sj" hidden>
+    <div class="topbar">
+      <button class="top-btn" id="sjSettings" title="تغيّر الإعدادات واللعبة تكمل">
+        <svg viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+        الإعدادات
+      </button>
+      <button class="top-btn" id="sjBell" title="جوالات اللاعبين">
+        <svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>
+        الجوالات
+        <i class="bell-badge" id="sjBellBadge" hidden></i>
+      </button>
+      <button class="top-btn danger" id="sjEnd" title="توقف اللعبة وترجع لشاشة الإعدادات">
+        <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+        إنهاء اللعبة
+      </button>
+    </div>
+    <header class="hud">
+      <button class="team" id="sjTeam0" data-t="0" title="اضغط لتعطيهم الدور">
+        <span class="turn-badge">دورهم</span>
+        <svg class="team-hex" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.5 21.5,7 21.5,17 12,22.5 2.5,17 2.5,7"/></svg>
+        <span class="team-info"><span class="team-name" id="sjName0"></span></span>
+        <span class="sj-score" id="sjScore0">0</span>
+      </button>
+      <div class="brand">
+        <div class="logo">سين جيم</div>
+        <div class="round" id="sjRound"></div>
+      </div>
+      <button class="team" id="sjTeam1" data-t="1" title="اضغط لتعطيهم الدور">
+        <span class="turn-badge">دورهم</span>
+        <svg class="team-hex" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1.5 21.5,7 21.5,17 12,22.5 2.5,17 2.5,7"/></svg>
+        <span class="team-info"><span class="team-name" id="sjName1"></span></span>
+        <span class="sj-score" id="sjScore1">0</span>
+      </button>
+    </header>
+    <main class="sj-wrap"><div class="sj-board" id="sjBoard"></div></main>
+  </section>
+
+  <!-- ===== سؤال سين جيم ===== -->
+  <div class="modal" id="sjModal" hidden>
+    <div class="sheet sj-sheet" role="dialog" aria-modal="true" aria-labelledby="sjQCat">
+      <div class="sj-qhead"><span class="sj-qcat" id="sjQCat"></span><span class="sj-qpts" id="sjQPts"></span></div>
+      <div class="sj-qturn" id="sjQTurn"></div>
+      <div class="sj-timer" id="sjTimer" hidden>
+        <div class="sj-timer-bar"><i id="sjTimerFill"></i></div>
+        <button class="sj-timer-text" id="sjTimerText" title="اضغط لإيقاف المؤقت أو تشغيله"></button>
+      </div>
+      <p class="q-text sj-qtext" id="sjQText"></p>
+      <div class="answer" id="sjAnswer">
+        <button class="reveal" id="sjReveal">إظهار الإجابة</button>
+        <div class="answer-text"><span class="qk">ج:</span> <span id="sjAnsText"></span></div>
+      </div>
+      <div class="sj-lf" id="sjLf">
+        <button class="secondary" id="sjDbl"></button>
+        <button class="secondary" id="sjSwap"></button>
+      </div>
+      <div class="q-actions sj-judge">
+        <button class="team-btn ta" id="sjOk0"></button>
+        <button class="team-btn tb" id="sjOk1"></button>
+      </div>
+      <button class="none-btn" id="sjNobody">ما أحد عرف</button>
+      <button class="link" id="sjBack">↩ رجوع للوحة (بدون احتساب)</button>
+    </div>
+  </div>
+
+  <div class="modal" id="sjWin" hidden>
+    <div class="sheet win-sheet" role="dialog" aria-modal="true" aria-labelledby="sjWinTitle">
+      <h3 class="sj-win-title" id="sjWinTitle"></h3>
+      <p class="muted sj-win-score" id="sjWinScore"></p>
+      <div class="win-actions">
+        <button class="primary" id="sjWinAgain">لعبة جديدة بنفس الفئات</button>
+        <button class="secondary" id="sjWinBoard">شوف اللوحة</button>
+        <button class="link" id="sjWinSetup">الإعدادات</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ===== نافذة السؤال ===== -->
   <div class="modal" id="qModal" hidden>
@@ -288,12 +365,21 @@
           <polygon class="h2" points="60,16 76,25 76,43 60,52 44,43 44,25"/>
           <polygon class="h3" points="100,8 116,17 116,35 100,44 84,35 84,17"/>
         </svg>
-        <div class="logo big">حروف</div>
-        <p class="tagline">جاوب صح، خذ الخلية، وكمّل طريقك قبل الخصم.</p>
+        <div class="logo big" id="setupLogo">حروف</div>
+        <p class="tagline" id="setupTag">جاوب صح، خذ الخلية، وكمّل طريقك قبل الخصم.</p>
         <button class="chip-btn" id="btnPlayerMode">📱 ادخل كجرس من جوالك</button>
       </div>
 
       <div class="setup-grid">
+        <section class="card span2">
+          <h2>اللعبة</h2>
+          <div class="seg" data-key="game">
+            <button data-v="letters">🔤 حروف</button>
+            <button data-v="sj">❓ سين جيم</button>
+          </div>
+          <p class="note" id="gameNote"></p>
+        </section>
+
         <section class="card span2">
           <h2>الفريقين</h2>
           <div class="teams-edit">
@@ -310,7 +396,7 @@
           </div>
         </section>
 
-        <section class="card span2">
+        <section class="card span2" data-g="letters">
           <h2>طريقة اللعب</h2>
           <div class="seg" data-key="play">
             <button data-v="turn">دور بدور</button>
@@ -319,7 +405,7 @@
           <p class="note play-note" id="playNote"></p>
         </section>
 
-        <section class="card">
+        <section class="card" data-g="letters">
           <h2>مستوى الأسئلة</h2>
           <div class="seg" data-key="level">
             <button data-v="normal">عادي</button>
@@ -329,7 +415,7 @@
           <p class="note" id="levelNote"></p>
         </section>
 
-        <section class="card">
+        <section class="card" data-g="letters">
           <h2>التخريب</h2>
           <div class="seg" data-key="sab">
             <button data-v="on">شغّال</button>
@@ -338,7 +424,7 @@
           <p class="note">بعد كل إجابة صح، الفريق يخرّب على الخصم.</p>
         </section>
 
-        <section class="card">
+        <section class="card" data-g="letters">
           <h2>حجم اللوحة</h2>
           <div class="seg" data-key="size">
             <button data-v="4">4×4</button>
@@ -346,6 +432,24 @@
             <button data-v="6">6×6</button>
           </div>
           <p class="note" id="sizeNote"></p>
+        </section>
+
+        <section class="card span2" data-g="sj">
+          <h2>الفئات (اختاروا 6 من 12)</h2>
+          <div class="sj-cats" id="sjCats"></div>
+          <div class="row">
+            <span class="note" id="sjCatNote"></span>
+            <button class="chip-btn" id="sjCatRand" type="button">🎲 عشوائي</button>
+          </div>
+        </section>
+
+        <section class="card" data-g="sj">
+          <h2>وسائل المساعدة</h2>
+          <div class="seg" data-key="sjlf">
+            <button data-v="on">شغّالة</button>
+            <button data-v="off">طافية</button>
+          </div>
+          <p class="note">كل فريق مرة وحدة: ⚡ يضاعف نقاط سؤاله، 🔄 يبدّل السؤال.</p>
         </section>
 
         <section class="card">
@@ -357,7 +461,7 @@
           <p class="note">اكتب الرقم بالعربي أو الإنجليزي. اتركه فاضي أو 0 لو ما تبي عدّاد.</p>
         </section>
 
-        <section class="card">
+        <section class="card" data-g="letters">
           <h2>الفوز بالمباراة</h2>
           <div class="seg" data-key="target">
             <button data-v="1">جولة وحدة</button>
@@ -366,7 +470,7 @@
           </div>
         </section>
 
-        <section class="card">
+        <section class="card" data-g="letters">
           <h2>الأسئلة</h2>
           <div class="seg" data-key="mode">
             <button data-v="bank">من بنك الأسئلة</button>
@@ -378,7 +482,7 @@
           </div>
         </section>
 
-        <section class="card">
+        <section class="card" data-g="letters">
           <h2>شكل الحروف</h2>
           <div class="seg fonts" data-key="font">
             <button data-v="ruqaa"><span class="sample f-ruqaa">ع</span>رقعة</button>
@@ -502,6 +606,7 @@
         <span class="ps ps-b"><i id="psS1">0</i><b id="psN1"></b></span>
       </div>
       <svg class="pl-board" id="plBoard" aria-label="اللوحة"></svg>
+      <div class="pl-sj" id="plSj" hidden></div>
       <div class="pl-timer" id="plTimer" hidden>
         <div class="pl-timer-bar"><i id="plTimerFill"></i></div>
         <span id="plTimerText"></span>
@@ -557,13 +662,15 @@
   <canvas id="fx" aria-hidden="true"></canvas>
 </div>
 <!-- APP END -->
-<script src="questions.js?v=1795623371"></script>
-<script src="questions_more.js?v=1795623371"></script>
-<script src="questions_nice.js?v=1795623371"></script>
-<script src="questions_hard.js?v=1795623371"></script>
-<script src="vendor/mqtt.min.js?v=1795623371"></script>
-<script src="rtc.js?v=1795623371"></script>
-<script src="bell.js?v=1795623371"></script>
-<script src="app.js?v=1795623371"></script>
+<script src="questions.js?v=1795710554"></script>
+<script src="questions_more.js?v=1795710554"></script>
+<script src="questions_nice.js?v=1795710554"></script>
+<script src="questions_hard.js?v=1795710554"></script>
+<script src="questions_sj.js?v=1795710554"></script>
+<script src="vendor/mqtt.min.js?v=1795710554"></script>
+<script src="rtc.js?v=1795710554"></script>
+<script src="bell.js?v=1795710554"></script>
+<script src="sj.js?v=1795710554"></script>
+<script src="app.js?v=1795710554"></script>
 </body>
 </html>
