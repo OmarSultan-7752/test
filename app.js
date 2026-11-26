@@ -125,12 +125,19 @@
 
   /* ================= الأصوات ================= */
   const Sound = (() => {
-    let ctx = null, master = null, stateCb = null;
-    // الايفون: زر الصامت يكتم صوت المتصفح، فنخلي جلسة الصوت "تشغيل".
-    // (ما نشغّل أي مقطع صامت: كان يطلع للمستخدم مشغّل وسائط في شاشة القفل)
+    let ctx = null, master = null, stateCb = null, lastUse = 0, ran = false;
+    // الايفون: زر الصامت يكتم صوت المتصفح، فنخلي جلسة الصوت "تشغيل" وقت ما نشغّل أصوات بس.
+    // ولما نخلص (أو تتقفل الشاشة / نطلع من الصفحة) نوقف الصوت ونرجّع الجلسة "auto"
+    // عشان ما يطلع مشغّل وسائط في شاشة القفل.
     function iosAudioFix() {
-      try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (_) {}
+      try { if (navigator.audioSession && navigator.audioSession.type !== "playback") navigator.audioSession.type = "playback"; } catch (_) {}
     }
+    function sleep() {
+      try { if (ctx && ctx.state === "running") ctx.suspend().catch(() => {}); } catch (_) {}
+      try { if (navigator.audioSession) navigator.audioSession.type = "auto"; } catch (_) {}
+    }
+    // لو ما انشغّل صوت ولا لمسة من ثواني: نريّح الصوت
+    setInterval(() => { if (ctx && ctx.state === "running" && Date.now() - lastUse > 6000) sleep(); }, 2000);
     function init() {
       if (!ctx) {
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -142,7 +149,7 @@
           const comp = ctx.createDynamicsCompressor();
           master.connect(comp);
           comp.connect(ctx.destination);
-          ctx.onstatechange = () => { if (stateCb) stateCb(ctx.state); };
+          ctx.onstatechange = () => { if (ctx.state === "running") ran = true; if (stateCb) stateCb(ctx.state); };
         } catch (_) { ctx = null; return null; }
       }
       if (ctx.state !== "running") {
@@ -217,11 +224,15 @@
       },
     };
     return {
-      unlock() { init(); iosAudioFix(); },
+      unlock() { lastUse = Date.now(); iosAudioFix(); init(); },
+      sleep,
       running() { return !!(ctx && ctx.state === "running"); },
+      everRan() { return ran; },
       state() { return ctx ? ctx.state : "لم يبدأ"; },
       onState(cb) { stateCb = cb; },
       play(name) {
+        lastUse = Date.now();
+        iosAudioFix();
         if (!init()) return;
         try { sounds[name] && sounds[name](); } catch (_) {}
       },
@@ -230,7 +241,8 @@
   ["touchend", "pointerup", "click", "keydown"].forEach((ev) =>
     document.addEventListener(ev, () => { if (!Sound.running()) Sound.unlock(); else Sound.unlock(); }, { passive: true })
   );
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") Sound.unlock(); });
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") Sound.unlock(); else Sound.sleep(); });
+  addEventListener("pagehide", () => Sound.sleep());
   // نقرة خفيفة مع كل زر
   document.addEventListener("click", (e) => {
     const b = e.target && e.target.closest ? e.target.closest("button") : null;
@@ -1637,9 +1649,9 @@
   $("#btnHome").onclick = () => openHome();
   function showSoundState() {
     const st = Sound.state();
-    const ok = st === "running";
+    const ok = st === "running" || (st === "suspended" && Sound.everRan());
     $("#soundState").textContent = ok
-      ? "✅ الصوت شغّال. إذا ما سمعت: ارفع الصوت وأطفئ زر الصامت."
+      ? "✅ الصوت جاهز. إذا ما سمعت: ارفع الصوت وأطفئ زر الصامت."
       : `⚠️ الصوت ما انفتح بعد (الحالة: ${st}). المس الشاشة ثم جرّب مرة ثانية.`;
     $("#soundState").dataset.ok = ok ? "1" : "0";
   }
