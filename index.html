@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&family=Changa:wght@600;800&family=Lalezar&family=Rakkas&family=Noto+Kufi+Arabic:wght@700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <!-- HEAD END -->
-<link rel="stylesheet" href="style.css?v=1795712286">
+<link rel="stylesheet" href="style.css?v=1795712533">
 </head>
 <body>
 <!-- APP START -->
@@ -714,16 +714,11 @@
   </div>
 
   <!-- ===== شاشة الافتتاح ===== -->
-  <div class="splash" id="splash" aria-hidden="true">
+  <div class="splash" id="splash" aria-hidden="true" hidden>
     <div class="splash-bg" id="splashBg"></div>
     <div class="splash-core">
-      <div class="splash-tiles">
-        <span class="st" style="--i:0"><b>ح</b></span>
-        <span class="st" style="--i:1"><b>ر</b></span>
-        <span class="st" style="--i:2"><b>و</b></span>
-        <span class="st" style="--i:3"><b>ف</b></span>
-      </div>
-      <div class="splash-tag">جاوب صح، خذ الخلية، وكمّل طريقك</div>
+      <div class="splash-tiles" id="splashTiles"></div>
+      <div class="splash-tag" id="splashTag"></div>
       <div class="splash-tap" id="splashTap">اضغط للبدء</div>
     </div>
   </div>
@@ -731,15 +726,15 @@
   <canvas id="fx" aria-hidden="true"></canvas>
 </div>
 <!-- APP END -->
-<script src="questions.js?v=1795712286"></script>
-<script src="questions_more.js?v=1795712286"></script>
-<script src="questions_nice.js?v=1795712286"></script>
-<script src="questions_hard.js?v=1795712286"></script>
-<script src="questions_sj.js?v=1795712286"></script>
-<script src="vendor/mqtt.min.js?v=1795712286"></script>
-<script src="rtc.js?v=1795712286"></script>
-<script src="bell.js?v=1795712286"></script>
-<script src="sj.js?v=1795712286"></script>
-<script src="app.js?v=1795712286"></script>
+<script src="questions.js?v=1795712533"></script>
+<script src="questions_more.js?v=1795712533"></script>
+<script src="questions_nice.js?v=1795712533"></script>
+<script src="questions_hard.js?v=1795712533"></script>
+<script src="questions_sj.js?v=1795712533"></script>
+<script src="vendor/mqtt.min.js?v=1795712533"></script>
+<script src="rtc.js?v=1795712533"></script>
+<script src="bell.js?v=1795712533"></script>
+<script src="sj.js?v=1795712533"></script>
+<script src="app.js?v=1795712533"></script>
 </body>
 </html>

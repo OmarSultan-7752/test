@@ -1613,9 +1613,7 @@
     const running = activeGame === g && (g === "sj" ? sjProgress() : lettersProgress());
     openSetup(!running, g);
   }
-  $("#homeLetters").onclick = () => pickGame("letters");
-  $("#homeSj").onclick = () => pickGame("sj");
-  $("#homeResume").onclick = () => { $("#home").hidden = true; setWorld(activeGame); queueSync(true); };
+  $("#homeResume").onclick = () => { markSession(); $("#home").hidden = true; setWorld(activeGame); queueSync(true); };
   $("#homePlayer").onclick = () => { if (Bell) Bell.openPlayer(); };
   $("#btnHome").onclick = () => openHome();
   function showSoundState() {
@@ -1888,35 +1886,61 @@
   const playerOnly = location.hash === "#bell";
   // أول فتح في الجلسة = نبدأ من شاشة الإعدادات (التحديث وسط اللعب يرجعك للوحة مباشرة)
   const newSession = (() => { try { return sessionStorage.getItem("haroof3:splash") !== "1"; } catch (_) { return true; } })();
+  function markSession() { try { sessionStorage.setItem("haroof3:splash", "1"); } catch (_) {} }
 
-  /* ================= شاشة الافتتاح ================= */
-  (function splash() {
+  /* ================= شاشة الافتتاح (لكل لعبة شاشتها، تطلع بعد ما تضغط بطاقتها) ================= */
+  const SPLASHES = {
+    letters: { tiles: ["ح", "ر", "و", "ف"], tag: "جاوب صح، خذ الخلية، وكمّل طريقك", bg: LETTERS },
+    sj: { tiles: ["س", "ج", "؟"], tag: "ست فئات، وأسئلة بنقاط… مين الأذكى؟", bg: ["س", "ج", "؟", "؟", "٢٠٠", "٤٠٠", "٦٠٠"] },
+    home: { tiles: ["ي", "ل", "ا"], tag: "مسابقات العيلة", bg: LETTERS },
+  };
+  let splashBusy = false;
+  function playSplash(kind, done) {
     const sp = $("#splash");
-    if (!sp) return;
+    const cfg = SPLASHES[kind] || SPLASHES.letters;
+    const flag = "haroof3:sp:" + kind;
     let seen = false;
-    try { seen = sessionStorage.getItem("haroof3:splash") === "1"; } catch (_) {}
-    if (seen) { sp.hidden = true; return; }
-    // حروف عايمة في الخلفية
+    try { seen = sessionStorage.getItem(flag) === "1"; } catch (_) {}
+    if (!sp || seen || splashBusy) { done && done(); return; }
+    splashBusy = true;
+    try { sessionStorage.setItem(flag, "1"); } catch (_) {}
+    sp.dataset.game = kind;
+    sp.classList.remove("go", "out");
+    const tiles = $("#splashTiles");
+    tiles.innerHTML = "";
+    cfg.tiles.forEach((ch, i) => {
+      const t = document.createElement("span");
+      t.className = "st";
+      t.style.setProperty("--i", String(i));
+      const b = document.createElement("b");
+      b.textContent = ch;
+      t.append(b);
+      tiles.append(t);
+    });
+    $("#splashTag").textContent = cfg.tag;
+    // حروف/رموز عايمة في الخلفية
     const bg = $("#splashBg");
+    bg.innerHTML = "";
     for (let i = 0; i < 26; i++) {
-      const s = document.createElement("span");
-      s.className = "sb";
-      s.textContent = LETTERS[Math.floor(Math.random() * LETTERS.length)];
-      s.style.left = (Math.random() * 100).toFixed(1) + "%";
-      s.style.fontSize = (26 + Math.random() * 90).toFixed(0) + "px";
-      s.style.animationDuration = (7 + Math.random() * 8).toFixed(1) + "s";
-      s.style.animationDelay = (-Math.random() * 12).toFixed(1) + "s";
-      s.style.setProperty("--o", (0.07 + Math.random() * 0.14).toFixed(2));
-      s.style.setProperty("--r", (Math.random() * 60 - 30).toFixed(0) + "deg");
-      bg.append(s);
+      const sb = document.createElement("span");
+      sb.className = "sb";
+      sb.textContent = cfg.bg[Math.floor(Math.random() * cfg.bg.length)];
+      sb.style.left = (Math.random() * 100).toFixed(1) + "%";
+      sb.style.fontSize = (26 + Math.random() * 90).toFixed(0) + "px";
+      sb.style.animationDuration = (7 + Math.random() * 8).toFixed(1) + "s";
+      sb.style.animationDelay = (-Math.random() * 12).toFixed(1) + "s";
+      sb.style.setProperty("--o", (0.07 + Math.random() * 0.14).toFixed(2));
+      sb.style.setProperty("--r", (Math.random() * 60 - 30).toFixed(0) + "deg");
+      bg.append(sb);
     }
+    sp.hidden = false;
     let started = false, ended = false, t0 = 0;
     const end = () => {
       if (ended) return;
       ended = true;
       sp.classList.add("out");
-      try { sessionStorage.setItem("haroof3:splash", "1"); } catch (_) {}
-      setTimeout(() => { sp.hidden = true; }, 650);
+      if (done) done();
+      setTimeout(() => { sp.hidden = true; splashBusy = false; }, 650);
     };
     const start = () => {
       if (started) return;
@@ -1930,11 +1954,15 @@
     // لو المتصفح يسمح بالصوت نبدأ مباشرة، وإلا ننتظر أول لمسة
     Sound.unlock();
     setTimeout(() => { if (Sound.running()) start(); }, 150);
-    sp.addEventListener("click", () => {
+    sp.onclick = () => {
       if (!started) start();
       else if (Date.now() - t0 > 1400) end();
-    });
-  })();
+    };
+  }
+  // ضغط بطاقة اللعبة: شاشة افتتاحها ثم إعداداتها
+  $("#homeLetters").onclick = () => { markSession(); playSplash("letters", () => pickGame("letters")); };
+  $("#homeSj").onclick = () => { markSession(); playSplash("sj", () => pickGame("sj")); };
+  if (playerOnly) playSplash("home");
   setActive(activeGame === "sj" && SJ && SJ.hasGame() ? "sj" : "letters");
   if (activeGame === "sj") {
     if (newSession && !playerOnly) openHome();

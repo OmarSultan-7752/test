@@ -1914,3 +1914,25 @@ body[data-world="sj"] .pl-timer-bar i { background: linear-gradient(90deg, #37e0
 @media (max-width: 720px) { .gc-art { max-height: 200px; } }
 body[data-world="sj"] .swatch { clip-path: none; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255, 255, 255, .08); }
 body[data-world="sj"] .swatch.on { box-shadow: 0 0 0 3px #fff, 0 0 16px var(--c); }
+
+
+/* شاشة افتتاح سين جيم */
+.splash[data-game="sj"] {
+  background:
+    radial-gradient(900px 600px at 50% 40%, #5a1f8f 0%, transparent 65%),
+    radial-gradient(700px 500px at 90% 100%, rgba(55, 224, 255, .22), transparent 60%),
+    #12081f;
+}
+.splash[data-game="sj"] .sb { font-family: "Rakkas", var(--f-display); }
+.splash[data-game="sj"] .st {
+  clip-path: none;
+  height: var(--s);
+  border-radius: 28px 28px 28px 8px;
+  background: linear-gradient(160deg, #ff8cc8, #ff4fa3 55%, #a3185f);
+  box-shadow: 0 14px 40px rgba(255, 79, 163, .4);
+}
+.splash[data-game="sj"] .st:nth-child(2) { border-radius: 28px 28px 8px 28px; background: linear-gradient(160deg, #8ef0ff, #37e0ff 55%, #1596c4); box-shadow: 0 14px 40px rgba(55, 224, 255, .35); }
+.splash[data-game="sj"] .st:nth-child(3) { border-radius: 50%; background: linear-gradient(160deg, #ffe9a8, #ffc94d 55%, #b27a12); box-shadow: 0 14px 40px rgba(255, 201, 77, .35); }
+.splash[data-game="sj"] .st b { font-family: "Rakkas", var(--f-display); }
+.splash[data-game="sj"] .splash-tag { color: #ffd0ea; }
+.splash[data-game="sj"] .splash-tap { border-color: rgba(255, 160, 210, .5); }
