@@ -1941,3 +1941,47 @@ body[data-world="sj"] .swatch.on { box-shadow: 0 0 0 3px #fff, 0 0 16px var(--c)
 .sj-lf .secondary { font-size: 14px; padding-inline: 4px; }
 .sj-hint { margin: 0 auto 12px; width: fit-content; max-width: 100%; padding: 6px 16px; border-radius: 999px; background: rgba(255, 201, 77, .14); border: 1px solid rgba(255, 201, 77, .5); color: #ffe7a8; font-weight: 800; font-size: 15px; animation: popIn .35s ease; }
 .pl-q p { white-space: pre-line; }
+
+/* ---- قبل السؤال + عجلة الحظ ---- */
+.sj-lf { grid-template-columns: repeat(2, 1fr); }
+.sj-prep { padding-top: 6px; }
+.sj-lock { font-size: 40px; line-height: 1; filter: drop-shadow(0 0 16px rgba(255, 79, 163, .5)); animation: bubPop 3s ease-in-out infinite; }
+.sj-prep-q { margin: 6px 0 4px; font-weight: 800; font-size: 20px; }
+.sj-prep-note { margin: 0 auto 12px; max-width: 34ch; padding: 8px 14px; border-radius: 14px; background: rgba(255, 201, 77, .12); border: 1px solid rgba(255, 201, 77, .45); color: #ffe7a8; font-size: 14px; line-height: 1.55; }
+.sj-prep-note b { color: #fff; }
+.sj-prep .primary.big { width: 100%; }
+.sj-wmsg { margin: 0 auto 12px; width: fit-content; max-width: 100%; padding: 6px 16px; border-radius: 999px; background: rgba(169, 139, 255, .16); border: 1px solid rgba(169, 139, 255, .55); color: #e2d6ff; font-weight: 800; font-size: 15px; animation: popIn .35s ease; }
+
+.sj-wheel-sheet { width: min(520px, 100%); padding-top: 22px; }
+.sj-wheel-sheet h3 { font-family: "Rakkas", var(--f-display); font-size: 30px; font-weight: 400; color: var(--gold); }
+.sj-wheel-box { position: relative; width: min(300px, 74vw); aspect-ratio: 1; margin: 6px auto 14px; }
+.sj-wheel { width: 100%; height: 100%; display: block; border-radius: 50%; box-shadow: 0 0 0 5px #ffe08a, 0 0 0 9px #7a3d00, 0 0 50px rgba(255, 201, 77, .35), 0 18px 40px rgba(0, 0, 0, .5); will-change: transform; }
+.sj-wheel-ic { font-size: 22px; text-anchor: middle; dominant-baseline: central; }
+.sj-wheel-ptr { position: absolute; top: -12px; left: 50%; z-index: 3; width: 0; height: 0; margin-left: -14px; border-inline: 14px solid transparent; border-top: 26px solid #fff; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .55)); }
+.sj-wheel-hub { position: absolute; inset: 0; margin: auto; z-index: 2; width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff3c4, #ffc94d 60%, #a86f0c); color: #5a2d00; font-size: 20px; box-shadow: 0 0 0 4px #7a3d00, 0 4px 10px rgba(0, 0, 0, .5); }
+.sj-wheel-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; text-align: start; }
+.sj-wl { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1.5px solid color-mix(in srgb, var(--wc) 55%, transparent); border-inline-start-width: 5px; transition: background .3s, transform .3s; }
+.sj-wl:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.sj-wl-ic { font-size: 22px; line-height: 1; }
+.sj-wl-tx { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.sj-wl-tx b { font-size: 14px; }
+.sj-wl-tx small { font-size: 11.5px; color: var(--muted); }
+.sj-wl.win { background: color-mix(in srgb, var(--wc) 35%, transparent); transform: scale(1.03); }
+.sj-wheel-res { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-bottom: 12px; padding: 10px 14px; border-radius: 18px; background: rgba(255, 255, 255, .07); border: 1.5px solid rgba(255, 255, 255, .25); animation: popIn .4s cubic-bezier(.2, 1.5, .4, 1); }
+.sj-wheel-res[data-k="g"] { border-color: #6cf08a; background: rgba(108, 240, 138, .12); }
+.sj-wheel-res[data-k="b"] { border-color: #ff5a5f; background: rgba(255, 90, 95, .12); }
+.sj-wr-ic { font-size: 44px; line-height: 1.1; }
+.sj-wheel-res b { font-size: 22px; }
+.sj-wheel-res span { color: var(--muted); font-weight: 700; }
+.sj-wheel-sheet .primary.big { width: 100%; }
+
+/* جوال اللاعب: عجلة الحظ */
+.pl-wheel { width: 100%; max-width: 520px; padding: 8px 10px; border-radius: 16px; background: rgba(169, 139, 255, .12); border: 1px solid rgba(169, 139, 255, .45); text-align: center; flex: none; }
+.pl-wheel[hidden] { display: none; }
+.pl-wheel .pw-t { font-weight: 800; font-size: 15px; margin-bottom: 6px; }
+.pl-wheel .pw-o { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+.pl-wheel .pw-o span { padding: 3px 9px; border-radius: 999px; background: rgba(255, 255, 255, .08); font-size: 12.5px; font-weight: 700; }
+.pl-wheel.spin .pw-o span { animation: pulse .35s ease-in-out infinite alternate; }
+.pl-wheel .pw-o span.win { background: var(--gold); color: #2a1500; transform: scale(1.12); }
+.pl-wheel .pw-m { margin-top: 6px; font-weight: 800; color: #ffe7a8; }
+@media (max-height: 700px) { .sj-wheel-box { width: min(220px, 60vw); } .sj-wheel-legend { gap: 4px; } }

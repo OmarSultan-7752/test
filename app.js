@@ -46,15 +46,29 @@
   };
   const clone = (o) => JSON.parse(JSON.stringify(o));
 
+  // أسماء وألوان الفريقين لكل لعبة لحالها (حروف / سين جيم)
+  const DEFAULT_TEAMS = {
+    letters: DEFAULTS.teams,
+    sj: [{ name: "الفريق الأزرق", color: "blue" }, { name: "الفريق الأحمر", color: "red" }],
+  };
+  function normTeams(arr, def) {
+    if (!Array.isArray(arr) || arr.length !== 2) return clone(def);
+    const t = arr.map((x, i) => ({
+      name: (x && typeof x.name === "string" && x.name.trim()) || def[i].name,
+      color: x && COLORS[x.color] ? x.color : def[i].color,
+    }));
+    return t[0].color === t[1].color ? clone(def) : t;
+  }
   function loadSettings() {
     const s = store.get("settings", {}) || {};
     const out = { ...clone(DEFAULTS), ...s };
-    if (!Array.isArray(out.teams) || out.teams.length !== 2) out.teams = clone(DEFAULTS.teams);
-    out.teams = out.teams.map((t, i) => ({
-      name: (t && typeof t.name === "string" && t.name.trim()) || DEFAULTS.teams[i].name,
-      color: t && COLORS[t.color] ? t.color : DEFAULTS.teams[i].color,
-    }));
-    if (out.teams[0].color === out.teams[1].color) out.teams = clone(DEFAULTS.teams);
+    const sets = out.teamSets && typeof out.teamSets === "object" ? out.teamSets : {};
+    out.teamSets = {
+      letters: normTeams(sets.letters || out.teams, DEFAULT_TEAMS.letters),
+      sj: normTeams(sets.sj, DEFAULT_TEAMS.sj),
+    };
+    const act = store.get("active", "letters") === "sj" && SJ ? "sj" : "letters";
+    out.teams = clone(out.teamSets[act]);
     if (![4, 5, 6].includes(out.size)) out.size = 5;
     if (!Number.isInteger(out.timer) || out.timer < 0 || out.timer > 600) out.timer = 20;
     if (![1, 2, 3].includes(out.target)) out.target = 2;
@@ -100,6 +114,9 @@
     $("#game").hidden = activeGame === "sj";
     if (activeGame === "sj") SJ.show(); else SJ && SJ.hide();
     setWorld(activeGame);
+    settings.teams = clone(settings.teamSets[activeGame]);
+    applyTheme();
+    if (Bell) Bell.teamsChanged();
     updateBellBadge();
   }
   function setWorld(w) { document.body.dataset.world = w; }
@@ -1417,6 +1434,7 @@
     setupFresh = !!fresh;
     draft = clone(settings);
     draft.game = g || activeGame;
+    draft.teams = clone(settings.teamSets[draft.game]);
     $("#home").hidden = true;
     renderSetup();
     $("#setup").hidden = false;
@@ -1522,7 +1540,11 @@
   };
 
   // نحفظ الإعدادات أول بأول (الأسماء والألوان وغيرها) عشان ما تضيع لو سكّرتم الصفحة قبل «ابدأ»
-  function saveDraft() { if (draft) store.set("settings", draft); }
+  function saveDraft() {
+    if (!draft) return;
+    settings.teamSets[draft.game] = clone(draft.teams);
+    store.set("settings", { ...draft, teams: settings.teams, teamSets: settings.teamSets });
+  }
   addEventListener("pagehide", saveDraft);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveDraft(); });
   // نطلب من المتصفح ما يمسح بيانات الموقع (الايفون يمسحها لو الموقع ما انفتح فترة)
@@ -1576,7 +1598,9 @@
 
   function commitDraft() {
     draft.teams.forEach((tm, i) => { tm.name = (tm.name || "").trim() || "الفريق " + COLORS[tm.color].label; });
+    const sets = { ...settings.teamSets, [draft.game]: clone(draft.teams) };
     settings = draft;
+    settings.teamSets = sets;
     draft = null;
     saveSettings();
     applyTheme();

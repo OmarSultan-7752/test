@@ -288,6 +288,7 @@
     // سين جيم: لوحة الفئات والسؤال (بدون جرس)
     if (s.g === "sj" && s.sj && typeof s.sj === "object") { plRenderSj(s, teams, mine); return; }
     { const lg = $(".player-top .logo"); if (lg) lg.textContent = "حروف"; document.body.dataset.world = "letters"; }
+    $("#plWheel").hidden = true;
     $("#plSj").hidden = true; $("#plBoard").toggleAttribute("hidden", false); $("#plQ").classList.remove("sj");
     pl.sjKey = ""; pl.sjMine = -1; pl.sjOpp = -1; pl.sjQ = "";
 
@@ -441,13 +442,44 @@
       $("#plQText").textContent = clean(s.qt, 200) + (sj.hn ? "\n💡 " + clean(sj.hn, 60) : "");
       if (pl.sjQ !== s.qt && ctx.sound) ctx.sound("open");
       pl.sjQ = s.qt;
+    } else if (s.ph === "prep") {
+      qBox.hidden = false;
+      $("#plLetter").textContent = String(Math.max(0, +sj.pt || 0));
+      $("#plQText").textContent = "🔒 جاهزين… السؤال بينعرض بعد قرار المضاعفة والعجلة";
+      pl.sjQ = "";
     } else { qBox.hidden = true; pl.sjQ = ""; }
+
+    // عجلة الحظ
+    const wbox = $("#plWheel");
+    const wh = sj.wh && Array.isArray(sj.wh.o) ? sj.wh : null;
+    if (!wh) { wbox.hidden = true; pl.whKey = ""; }
+    else {
+      wbox.hidden = false;
+      const key = JSON.stringify(wh);
+      if (key !== pl.whKey) {
+        const prevR = pl.whR;
+        pl.whKey = key; pl.whR = wh.r;
+        wbox.innerHTML = "";
+        wbox.classList.toggle("spin", !!wh.sp);
+        const t = document.createElement("div"); t.className = "pw-t"; t.textContent = wh.sp ? "🎡 العجلة تلف…" : "🎡 عجلة الحظ";
+        const o = document.createElement("div"); o.className = "pw-o";
+        wh.o.slice(0, 7).forEach((x, i) => {
+          const sp = document.createElement("span");
+          if (wh.r === i) sp.className = "win";
+          sp.textContent = clean(x && x[0], 4) + " " + clean(x && x[1], 20);
+          o.append(sp);
+        });
+        wbox.append(t, o);
+        if (wh.r >= 0 && wh.m) { const m = document.createElement("div"); m.className = "pw-m"; m.textContent = clean(wh.m, 80); wbox.append(m); }
+        if (wh.r >= 0 && prevR !== wh.r && ctx.sound) { const k = wh.o[wh.r] && wh.o[wh.r][2]; ctx.sound(k === "g" ? "correct" : k === "b" ? "wrong" : "open"); }
+      }
+    }
 
     // وسائل المساعدة
     const lf = Array.isArray(sj.lf) && Array.isArray(sj.lf[mine]) ? sj.lf[mine] : [0, 0];
     const fxBox = $("#plFx");
     fxBox.innerHTML = "";
-    [[lf[0], "⚡ عندكم مضاعفة نقاط"], [lf[1], "🔄 عندكم تبديل سؤال"], [lf[2], "💡 عندكم تلميح"]].forEach(([on, t]) => {
+    [[lf[0], "⚡ عندكم مضاعفة نقاط"], [lf[1], "🔄 عندكم تبديل سؤال"], [lf[2], "💡 عندكم تلميح"], [lf[3], "🎡 عندكم عجلة حظ"]].forEach(([on, t]) => {
       if (!on) return;
       const c = document.createElement("span"); c.className = "ok"; c.textContent = t; fxBox.append(c);
     });

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&family=Changa:wght@600;800&family=Lalezar&family=Rakkas&family=Noto+Kufi+Arabic:wght@700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <!-- HEAD END -->
-<link rel="stylesheet" href="style.css?v=1795713982">
+<link rel="stylesheet" href="style.css?v=1795714573">
 </head>
 <body>
 <!-- APP START -->
@@ -134,27 +134,62 @@
       <div class="sj-qicon" id="sjQIcon" aria-hidden="true"></div>
       <div class="sj-qhead"><span class="sj-qcat" id="sjQCat"></span><span class="sj-qpts" id="sjQPts"></span></div>
       <div class="sj-qturn" id="sjQTurn"></div>
-      <div class="sj-timer" id="sjTimer" hidden>
-        <div class="sj-timer-bar"><i id="sjTimerFill"></i></div>
-        <button class="sj-timer-text" id="sjTimerText" title="اضغط لإيقاف المؤقت أو تشغيله"></button>
+
+      <!-- قبل السؤال: القرارات (مضاعفة / عجلة الحظ) والسؤال مخفي -->
+      <div class="sj-prep" id="sjPrep">
+        <div class="sj-lock" aria-hidden="true">🔒</div>
+        <p class="sj-prep-q">السؤال مخفي لين تقررون</p>
+        <p class="sj-prep-note" id="sjPrepNote">⚠️ <b>المضاعفة</b> و<b>عجلة الحظ</b> تُستخدم الحين، <b>قبل</b> ما تشوفون السؤال. بعد «اعرضوا السؤال» ما تنفع.</p>
+        <div class="sj-lf" id="sjPrepLf">
+          <button class="secondary" id="sjDbl"></button>
+          <button class="secondary" id="sjWheelBtn"></button>
+        </div>
+        <div class="sj-wmsg" id="sjWMsg" hidden></div>
+        <button class="primary big" id="sjShow">اعرضوا السؤال ▶</button>
       </div>
-      <p class="q-text sj-qtext" id="sjQText"></p>
-      <div class="sj-hint" id="sjHintBox" hidden>💡 <span id="sjHintText"></span></div>
-      <div class="answer" id="sjAnswer">
-        <button class="reveal" id="sjReveal">إظهار الإجابة</button>
-        <div class="answer-text"><span class="qk">ج:</span> <span id="sjAnsText"></span></div>
+
+      <!-- بعد ما ينعرض السؤال -->
+      <div class="sj-live" id="sjLive" hidden>
+        <div class="sj-timer" id="sjTimer" hidden>
+          <div class="sj-timer-bar"><i id="sjTimerFill"></i></div>
+          <button class="sj-timer-text" id="sjTimerText" title="اضغط لإيقاف المؤقت أو تشغيله"></button>
+        </div>
+        <p class="q-text sj-qtext" id="sjQText"></p>
+        <div class="sj-hint" id="sjHintBox" hidden>💡 <span id="sjHintText"></span></div>
+        <div class="sj-wmsg" id="sjWMsg2" hidden></div>
+        <div class="answer" id="sjAnswer">
+          <button class="reveal" id="sjReveal">إظهار الإجابة</button>
+          <div class="answer-text"><span class="qk">ج:</span> <span id="sjAnsText"></span></div>
+        </div>
+        <div class="sj-lf" id="sjLf">
+          <button class="secondary" id="sjSwap"></button>
+          <button class="secondary" id="sjHint"></button>
+        </div>
+        <div class="q-actions sj-judge">
+          <button class="team-btn ta" id="sjOk0"></button>
+          <button class="team-btn tb" id="sjOk1"></button>
+        </div>
+        <button class="none-btn" id="sjNobody">ما أحد عرف</button>
       </div>
-      <div class="sj-lf" id="sjLf">
-        <button class="secondary" id="sjDbl"></button>
-        <button class="secondary" id="sjSwap"></button>
-        <button class="secondary" id="sjHint"></button>
-      </div>
-      <div class="q-actions sj-judge">
-        <button class="team-btn ta" id="sjOk0"></button>
-        <button class="team-btn tb" id="sjOk1"></button>
-      </div>
-      <button class="none-btn" id="sjNobody">ما أحد عرف</button>
+
       <button class="link" id="sjBack">↩ رجوع للوحة (بدون احتساب)</button>
+    </div>
+  </div>
+
+  <!-- ===== عجلة الحظ ===== -->
+  <div class="modal" id="sjWheel" hidden>
+    <div class="sheet sj-wheel-sheet" role="dialog" aria-modal="true" aria-labelledby="sjWheelTitle">
+      <h3 id="sjWheelTitle">🎡 عجلة الحظ</h3>
+      <p class="muted" id="sjWheelSub"></p>
+      <div class="sj-wheel-box">
+        <div class="sj-wheel-ptr" aria-hidden="true"></div>
+        <svg class="sj-wheel" id="sjWheelSvg" viewBox="-110 -110 220 220" aria-hidden="true"><g id="sjWheelRot"></g></svg>
+        <div class="sj-wheel-hub" aria-hidden="true">★</div>
+      </div>
+      <div class="sj-wheel-legend" id="sjWheelLegend"></div>
+      <div class="sj-wheel-res" id="sjWheelRes" hidden></div>
+      <button class="primary big" id="sjSpin">🎡 لفّ العجلة</button>
+      <button class="primary big" id="sjWheelOk" hidden>كمّلوا ▶</button>
     </div>
   </div>
 
@@ -416,7 +451,7 @@
           <span class="gc-body">
             <span class="gc-name">سين جيم</span>
             <span class="gc-tag">ست فئات وأسئلة بنقاط: اختاروا، جاوبوا، واجمعوا</span>
-            <span class="gc-chips"><i>❓ 12 فئة</i><i>⚡ مضاعفة</i><i>🔄 تبديل</i><i>💡 تلميح</i></span>
+            <span class="gc-chips"><i>❓ 12 فئة</i><i>⚡ مضاعفة</i><i>🎡 عجلة الحظ</i><i>🔄 تبديل</i><i>💡 تلميح</i></span>
             <span class="gc-go">يلا نلعب <b>←</b></span>
           </span>
           <span class="gc-live" id="homeSjLive" hidden>● لعبة شغالة</span>
@@ -520,7 +555,7 @@
             <button data-v="on">شغّالة</button>
             <button data-v="off">طافية</button>
           </div>
-          <p class="note">كل فريق مرة وحدة من كل واحدة: ⚡ يضاعف نقاط سؤاله، 🔄 يبدّل السؤال، 💡 يطلع تلميح (أول حرف وعدد الحروف).</p>
+          <p class="note">كل فريق مرة وحدة من كل واحدة: ⚡ مضاعفة و🎡 عجلة الحظ (قبل ما تشوفون السؤال)، 🔄 تبديل السؤال، 💡 تلميح (أول حرف وعدد الحروف).</p>
         </section>
 
         <section class="card">
@@ -677,6 +712,7 @@
         <span class="ps ps-b"><i id="psS1">0</i><b id="psN1"></b></span>
       </div>
       <svg class="pl-board" id="plBoard" aria-label="اللوحة"></svg>
+      <div class="pl-wheel" id="plWheel" hidden></div>
       <div class="pl-sj" id="plSj" hidden></div>
       <div class="pl-timer" id="plTimer" hidden>
         <div class="pl-timer-bar"><i id="plTimerFill"></i></div>
@@ -728,15 +764,15 @@
   <canvas id="fx" aria-hidden="true"></canvas>
 </div>
 <!-- APP END -->
-<script src="questions.js?v=1795713982"></script>
-<script src="questions_more.js?v=1795713982"></script>
-<script src="questions_nice.js?v=1795713982"></script>
-<script src="questions_hard.js?v=1795713982"></script>
-<script src="questions_sj.js?v=1795713982"></script>
-<script src="vendor/mqtt.min.js?v=1795713982"></script>
-<script src="rtc.js?v=1795713982"></script>
-<script src="bell.js?v=1795713982"></script>
-<script src="sj.js?v=1795713982"></script>
-<script src="app.js?v=1795713982"></script>
+<script src="questions.js?v=1795714573"></script>
+<script src="questions_more.js?v=1795714573"></script>
+<script src="questions_nice.js?v=1795714573"></script>
+<script src="questions_hard.js?v=1795714573"></script>
+<script src="questions_sj.js?v=1795714573"></script>
+<script src="vendor/mqtt.min.js?v=1795714573"></script>
+<script src="rtc.js?v=1795714573"></script>
+<script src="bell.js?v=1795714573"></script>
+<script src="sj.js?v=1795714573"></script>
+<script src="app.js?v=1795714573"></script>
 </body>
 </html>

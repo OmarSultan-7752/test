@@ -20,6 +20,10 @@
   let open = -1;              // الخلية المفتوحة (-1 = ما فيه سؤال)
   let revealed = false;
   let hintOpen = false;
+  let phase = "prep";         // prep = قبل ما ينعرض السؤال، live = السؤال ظاهر
+  let qf = newQf(0);          // مؤثرات السؤال الحالي (من العجلة)
+  let wheel = null;           // عجلة الحظ الحالية
+  function newQf(picker) { return { picker, dbl: false, extra: 0, halve: false, freeHint: false, noLife: false, noSteal: false, swapped: false }; }
   const timer = { total: 0, left: 0, running: false, raf: 0, last: 0, lastWhole: 0 };
 
   const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } };
@@ -193,57 +197,96 @@
     return `يبدأ بحرف «${first}» · ${letters.length} حروف` + (words.length > 1 ? ` · ${words.length} كلمات` : "");
   }
   function lfOn() { return ctx.lifelines(); }
+  const fmtPts = (i) => {
+    const m = state.mult || 1;
+    return String(Math.round(pts(i) * m)) + (m > 1 ? " ⚡" : m < 1 ? " ½" : "");
+  };
+  function qSeconds() {
+    let sec = ctx.timerSec();
+    if (!sec) return 0;
+    if (qf.halve) sec = Math.max(5, Math.round(sec / 2));
+    return sec + qf.extra;
+  }
+  const addScore = (t, n) => { state.score[t] = Math.max(0, state.score[t] + n); };
+
   function renderQuestion() {
     const c = state.cells[open];
     const cat = BYID[state.cats[open % NCOL]];
     const t = state.turn;
-    const mult = state.mult || 1;
+    const prep = phase === "prep";
+    const on = lfOn();
+    const lf = state.lf[t];
     $("#sjQCat").textContent = cat.name;
     $("#sjQIcon").textContent = cat.icon;
     $("#sjModal .sj-sheet").style.setProperty("--cc", COLS[open % NCOL]);
-    $("#sjQPts").textContent = String(pts(open) * mult) + (mult > 1 ? " ⚡" : "");
+    $("#sjQPts").textContent = fmtPts(open);
     $("#sjQTurn").textContent = `الدور على ${nm(t)}`;
     $("#sjQTurn").dataset.t = String(t);
+    $("#sjPrep").hidden = !prep;
+    $("#sjLive").hidden = prep;
+    const wm = wheel && wheel.msg ? "🎡 " + wheel.msg : "";
+    for (const id of ["#sjWMsg", "#sjWMsg2"]) { $(id).hidden = !wm; $(id).textContent = wm; }
+    if (prep) {
+      $("#sjPrepLf").hidden = !on;
+      $("#sjPrepNote").hidden = !on || !(lf.dbl || lf.wheel);
+      $("#sjDbl").disabled = !lf.dbl || qf.dbl;
+      $("#sjDbl").textContent = !lf.dbl ? "⚡ ✕" : qf.dbl ? "⚡ النقاط مضاعفة" : "⚡ ضاعف النقاط";
+      $("#sjWheelBtn").disabled = !lf.wheel;
+      $("#sjWheelBtn").textContent = lf.wheel ? "🎡 عجلة الحظ" : "🎡 ✕";
+      return;
+    }
     $("#sjQText").textContent = c.q;
     $("#sjAnsText").textContent = c.a;
     $("#sjAnswer").classList.toggle("shown", revealed);
-    const lf = state.lf[t];
-    const showLf = lfOn() && !revealed;
-    $("#sjLf").hidden = !showLf;
+    $("#sjLf").hidden = !on || revealed || qf.noLife;
     $("#sjHint").disabled = !lf.hint || hintOpen;
     $("#sjHint").textContent = lf.hint ? (hintOpen ? "💡 التلميح ظاهر" : "💡 تلميح") : "💡 ✕";
     $("#sjHintBox").hidden = !hintOpen;
     $("#sjHintText").textContent = hintOpen ? hintFor(c.a) : "";
-    $("#sjDbl").disabled = !lf.dbl || mult > 1;
-    $("#sjDbl").textContent = lf.dbl ? (mult > 1 ? "⚡ النقاط مضاعفة" : "⚡ ضاعف") : "⚡ ✕";
     const alts = c.alts || [];
     $("#sjSwap").disabled = !lf.swap || !alts.length;
     $("#sjSwap").textContent = lf.swap ? (alts.length ? "🔄 بدّل" : "🔄 ما فيه بديل") : "🔄 ✕";
     $("#sjOk0").textContent = `✓ ${nm(0)}`;
     $("#sjOk1").textContent = `✓ ${nm(1)}`;
+    $("#sjOk" + (1 - t)).hidden = qf.noSteal;   // حصانة: الخصم ما يسرق
+    $("#sjOk" + t).hidden = false;
   }
 
   function openCell(i) {
     if (!state || state.used[i] >= 0 || open >= 0) return;
-    open = i; revealed = false; hintOpen = false; state.mult = 1;
+    open = i; phase = "prep"; revealed = false; hintOpen = false; state.mult = 1;
+    qf = newQf(state.turn); wheel = null;
     renderQuestion();
     $("#sjModal").hidden = false;
     ctx.sound("open");
-    timerStart(ctx.timerSec());
+    timer.total = 0;
+    ctx.sync(true);
+  }
+
+  function showQuestion() {
+    if (open < 0 || phase !== "prep") return;
+    phase = "live";
+    if (qf.freeHint) hintOpen = true;
+    renderQuestion();
+    ctx.sound("open");
+    timerStart(qSeconds());
     ctx.sync(true);
   }
 
   function closeQuestion() {
     timerStop();
+    clearTimeout(spinTimer); spinTicks.forEach(clearTimeout); spinTicks = [];
     timer.total = 0;
-    open = -1; revealed = false; hintOpen = false;
+    open = -1; phase = "prep"; revealed = false; hintOpen = false; wheel = null;
+    qf = newQf(0);
     if (state) state.mult = 1;
     $("#sjModal").hidden = true;
+    $("#sjWheel").hidden = true;
     ctx.sync(true);
   }
 
   function reveal() {
-    if (open < 0 || revealed) return;
+    if (open < 0 || revealed || phase !== "live") return;
     revealed = true;
     timerStop();
     drawTimer();
@@ -252,14 +295,25 @@
     ctx.sync(true);
   }
 
+  function afterTile(i, msg) {
+    state.turn = 1 - qf.picker;
+    state.last = msg;
+    justDone = i;
+    persist();
+    closeQuestion();
+    renderBoard();
+    if (state.used.every((u) => u >= 0)) setTimeout(showWin, 650);
+    else ctx.sync(true);
+  }
+
   function finish(result) {    // 0 / 1 = الفريق اللي جاوب صح، -1 = ما أحد
-    if (open < 0) return;
+    if (open < 0 || phase !== "live") return;
     const i = open;
-    const picker = state.turn;
+    const answerer = state.turn;
     const mult = state.mult || 1;
     let msg;
     if (result === 0 || result === 1) {
-      const gain = pts(i) * (result === picker ? mult : 1);
+      const gain = Math.round(pts(i) * (result === answerer ? mult : 1));
       state.score[result] += gain;
       state.used[i] = result;
       ctx.sound("correct");
@@ -272,26 +326,19 @@
       ctx.sound("wrong");
       msg = "ما أحد جاوب";
     }
-    state.turn = 1 - picker;
-    state.last = msg;
-    justDone = i;
-    persist();
-    closeQuestion();
-    renderBoard();
-    if (state.used.every((u) => u >= 0)) setTimeout(showWin, 650);
-    else ctx.sync(true);
+    afterTile(i, msg);
   }
 
   function useDouble() {
     const lf = state.lf[state.turn];
-    if (open < 0 || revealed || !lf.dbl || (state.mult || 1) > 1) return;
-    lf.dbl = false; state.mult = 2;
+    if (open < 0 || phase !== "prep" || !lf.dbl || qf.dbl) return;
+    lf.dbl = false; qf.dbl = true; state.mult *= 2;
     ctx.sound("open");
     persist(); renderQuestion(); ctx.sync(true);
   }
   function useHint() {
     const lf = state.lf[state.turn];
-    if (open < 0 || revealed || !lf.hint || hintOpen) return;
+    if (open < 0 || revealed || phase !== "live" || !lf.hint || hintOpen || qf.noLife) return;
     lf.hint = false; hintOpen = true;
     ctx.sound("open");
     persist(); renderQuestion(); ctx.sync(true);
@@ -299,16 +346,217 @@
   function useSwap() {
     const lf = state.lf[state.turn];
     const c = state.cells[open];
-    if (open < 0 || revealed || !lf.swap || !c.alts || !c.alts.length) return;
+    if (open < 0 || revealed || phase !== "live" || !lf.swap || qf.noLife || !c.alts || !c.alts.length) return;
     const nx = c.alts.shift();
     lf.swap = false;
     c.q = nx[0]; c.a = nx[1];
     hintOpen = false;
     persist();
     renderQuestion();
-    timerStart(ctx.timerSec());
+    timerStart(qSeconds());
     ctx.sound("shuffle");
     ctx.sync(true);
+  }
+
+  /* ================= عجلة الحظ: 20 احتمال، كل لفة 7 مختلفة ================= */
+  const EFFECTS = {
+    bonus50:  { k: "g", icon: "🍀", name: "+50 نقطة", desc: "هدية 50 نقطة" },
+    bonus100: { k: "g", icon: "💰", name: "+100 نقطة", desc: "هدية 100 نقطة" },
+    bonus200: { k: "g", icon: "💎", name: "+200 نقطة", desc: "هدية 200 نقطة" },
+    dbl:      { k: "g", icon: "⚡", name: "نقاط ×2", desc: "نقاط السؤال تتضاعف" },
+    triple:   { k: "g", icon: "🔥", name: "نقاط ×3", desc: "نقاط السؤال ثلاثة أضعاف" },
+    extra:    { k: "g", icon: "⏱️", name: "وقت زيادة", desc: "+15 ثانية على وقتكم" },
+    freeSwap: { k: "g", icon: "🔄", name: "تبديل رجع", desc: "ترجع لكم وسيلة التبديل" },
+    freeHint: { k: "g", icon: "💡", name: "تلميح مجاني", desc: "يطلع لكم تلميح بدون ما يُحسب" },
+    steal:    { k: "g", icon: "🥷", name: "سرقة 100", desc: "تاخذون 100 نقطة من الخصم" },
+    freebie:  { k: "g", icon: "🎁", name: "هدية", desc: "تاخذون نقاط السؤال بدون سؤال" },
+    immune:   { k: "g", icon: "🛡️", name: "حصانة", desc: "الخصم ما يقدر يسرق السؤال" },
+    lose100:  { k: "b", icon: "💣", name: "خسارة 100", desc: "تخسرون 100 نقطة" },
+    oppGets:  { k: "b", icon: "📦", name: "الخصم +100", desc: "الخصم ياخذ 100 نقطة" },
+    halfTime: { k: "b", icon: "🥶", name: "نص الوقت", desc: "وقتكم ينقص للنصف" },
+    halfPts:  { k: "b", icon: "📉", name: "نص النقاط", desc: "نقاط السؤال النصف" },
+    skip:     { k: "b", icon: "⛔", name: "ضاع دوركم", desc: "السؤال يرجع للوحة والدور للخصم" },
+    noLife:   { k: "b", icon: "🔒", name: "بدون مساعدات", desc: "بدون تبديل وتلميح لهالسؤال" },
+    oppFirst: { k: "b", icon: "🎭", name: "الخصم يجاوب", desc: "السؤال يروح للخصم" },
+    nothing:  { k: "n", icon: "😅", name: "ولا شي", desc: "العجلة ما أعطت شي" },
+    respin:   { k: "n", icon: "🔁", name: "لفّوا ثانية", desc: "لفة مجانية ثانية" },
+  };
+  const WCOLS = ["#ff4fa3", "#37e0ff", "#ffc94d", "#6cf08a", "#a98bff", "#ff8a5c", "#4f8cff"];
+  let spinTimer = 0, spinTicks = [];
+
+  // 4 احتمالات حلوة + 3 من الباقي، وكل مجموعة تدور على 20 احتمال بدون تكرار قبل ما تخلص
+  function drawOpts() {
+    const noTime = !ctx.timerSec();
+    const ok = (id) => !(noTime && (id === "extra" || id === "halfTime"));
+    const G = Object.keys(EFFECTS).filter((id) => EFFECTS[id].k === "g" && ok(id));
+    const O = Object.keys(EFFECTS).filter((id) => EFFECTS[id].k !== "g" && ok(id));
+    state.wq = state.wq && typeof state.wq === "object" ? state.wq : { g: [], o: [] };
+    const take = (key, pool, n) => {
+      const out = [];
+      while (out.length < n) {
+        state.wq[key] = (state.wq[key] || []).filter((id) => pool.includes(id) && !out.includes(id));
+        if (!state.wq[key].length) state.wq[key] = shuffle(pool).filter((id) => !out.includes(id));
+        out.push(state.wq[key].shift());
+      }
+      return out;
+    };
+    return shuffle(take("g", G, 4).concat(take("o", O, 3)));
+  }
+
+  function applyEffect(id, t) {
+    const o = 1 - t;
+    switch (id) {
+      case "bonus50": case "bonus100": case "bonus200": { const n = +id.slice(5); addScore(t, n); return { msg: `+${n} نقطة لـ ${nm(t)}` }; }
+      case "dbl": state.mult *= 2; qf.dbl = true; return { msg: "نقاط السؤال ×2" };
+      case "triple": state.mult *= 3; qf.dbl = true; return { msg: "نقاط السؤال ×3" };
+      case "extra": qf.extra += 15; return { msg: "+15 ثانية على وقتكم" };
+      case "freeSwap": state.lf[t].swap = true; return { msg: "رجعت لكم وسيلة تبديل السؤال" };
+      case "freeHint": qf.freeHint = true; return { msg: "التلميح ينعرض لكم مجاناً" };
+      case "steal": {
+        const n = Math.min(100, state.score[o]);
+        state.score[o] -= n; state.score[t] += n;
+        return { msg: n ? `سرقتوا ${n} نقطة من ${nm(o)}` : `${nm(o)} ما عندهم نقاط تنسرق` };
+      }
+      case "freebie": {
+        const g = Math.round(pts(open) * (state.mult || 1));
+        state.score[t] += g; state.used[open] = t;
+        return { msg: `هدية! ${nm(t)} ياخذون ${g} بدون سؤال`, after: "done" };
+      }
+      case "immune": qf.noSteal = true; return { msg: "الخصم ما يقدر يسرق هالسؤال منكم" };
+      case "lose100": {
+        const n = Math.min(100, state.score[t]);
+        state.score[t] -= n;
+        return { msg: n ? `خسرتوا ${n} نقطة` : "ما عندكم نقاط تنخسر" };
+      }
+      case "oppGets": addScore(o, 100); return { msg: `${nm(o)} ياخذون +100` };
+      case "halfTime": qf.halve = true; return { msg: "وقتكم النصف" };
+      case "halfPts": state.mult *= 0.5; return { msg: "نقاط السؤال النصف" };
+      case "skip": return { msg: `ضاع دوركم، الدور على ${nm(o)}`, after: "skip" };
+      case "noLife": qf.noLife = true; return { msg: "هالسؤال بدون تبديل وتلميح" };
+      case "oppFirst": state.turn = o; qf.swapped = true; return { msg: `${nm(o)} يجاوبون هالسؤال` };
+      case "respin": return { msg: "لفة مجانية ثانية", respin: true };
+      default: return { msg: "ولا شي هالمرة 😅" };
+    }
+  }
+
+  function wheelOpen() {
+    const lf = state.lf[state.turn];
+    if (open < 0 || phase !== "prep" || !lf.wheel || wheel) return;
+    lf.wheel = false;
+    wheel = { opts: drawOpts(), r: -1, rot: 0, spinning: false, msg: "", after: null, respin: false };
+    persist();
+    renderWheel();
+    $("#sjWheel").hidden = false;
+    ctx.sound("open");
+    ctx.sync(true);
+  }
+
+  function renderWheel() {
+    const svg = $("#sjWheelSvg");
+    const NS = "http://www.w3.org/2000/svg";
+    const g = $("#sjWheelRot");
+    g.innerHTML = "";
+    const n = wheel.opts.length, seg = 360 / n, R = 104;
+    const rad = (d) => (d * Math.PI) / 180;
+    wheel.opts.forEach((id, i) => {
+      const a0 = rad(i * seg), a1 = rad((i + 1) * seg), am = rad((i + 0.5) * seg);
+      const path = document.createElementNS(NS, "path");
+      path.setAttribute("d", `M0 0 L${(R * Math.sin(a0)).toFixed(2)} ${(-R * Math.cos(a0)).toFixed(2)} A${R} ${R} 0 0 1 ${(R * Math.sin(a1)).toFixed(2)} ${(-R * Math.cos(a1)).toFixed(2)} Z`);
+      path.setAttribute("fill", WCOLS[i % WCOLS.length]);
+      path.setAttribute("stroke", "#1a0b36");
+      path.setAttribute("stroke-width", "2");
+      const tx = document.createElementNS(NS, "text");
+      tx.setAttribute("x", (66 * Math.sin(am)).toFixed(2));
+      tx.setAttribute("y", (-66 * Math.cos(am)).toFixed(2));
+      tx.setAttribute("class", "sj-wheel-ic");
+      tx.textContent = EFFECTS[id].icon;
+      g.append(path, tx);
+    });
+    svg.style.transition = "none";
+    svg.style.transform = `rotate(${wheel.rot}deg)`;
+    const lg = $("#sjWheelLegend");
+    lg.innerHTML = "";
+    wheel.opts.forEach((id, i) => {
+      const e = EFFECTS[id];
+      const row = document.createElement("div");
+      row.className = "sj-wl" + (wheel.r === i ? " win" : "");
+      row.style.setProperty("--wc", WCOLS[i % WCOLS.length]);
+      const ic = document.createElement("span"); ic.className = "sj-wl-ic"; ic.textContent = e.icon;
+      const tx = document.createElement("span"); tx.className = "sj-wl-tx";
+      const b = document.createElement("b"); b.textContent = e.name;
+      const sm = document.createElement("small"); sm.textContent = e.desc;
+      tx.append(b, sm);
+      row.append(ic, tx);
+      lg.append(row);
+    });
+    $("#sjWheelSub").textContent = `${nm(state.turn)}: لفّوا العجلة، وش يطلع لكم؟`;
+    const res = $("#sjWheelRes");
+    res.hidden = wheel.r < 0;
+    if (wheel.r >= 0) {
+      const e = EFFECTS[wheel.opts[wheel.r]];
+      res.dataset.k = e.k;
+      res.innerHTML = "";
+      const big = document.createElement("div"); big.className = "sj-wr-ic"; big.textContent = e.icon;
+      const t1 = document.createElement("b"); t1.textContent = e.name;
+      const t2 = document.createElement("span"); t2.textContent = wheel.msg;
+      res.append(big, t1, t2);
+    }
+    $("#sjSpin").hidden = wheel.spinning || (wheel.r >= 0 && !wheel.respin);
+    $("#sjSpin").disabled = wheel.spinning;
+    $("#sjWheelOk").hidden = !(wheel.r >= 0 && !wheel.respin);
+  }
+
+  function spin() {
+    if (!wheel || wheel.spinning || (wheel.r >= 0 && !wheel.respin)) return;
+    const n = wheel.opts.length, seg = 360 / n;
+    const r = Math.floor(Math.random() * n);
+    const jitter = (Math.random() - 0.5) * seg * 0.6;
+    const base = Math.ceil(wheel.rot / 360) * 360;
+    wheel.rot = base + 360 * 5 + (360 - (r + 0.5) * seg) + jitter;
+    wheel.spinning = true; wheel.r = -1; wheel.respin = false; wheel.msg = "";
+    renderWheel();
+    const svg = $("#sjWheelSvg");
+    void svg.getBoundingClientRect();
+    svg.style.transition = "transform 5s cubic-bezier(.12,.7,.12,1)";
+    svg.style.transform = `rotate(${wheel.rot}deg)`;
+    spinTicks.forEach(clearTimeout); spinTicks = [];
+    for (let k = 1; k <= 24; k++) spinTicks.push(setTimeout(() => ctx.sound("tick"), 5000 * Math.pow(k / 24, 1.2)));
+    clearTimeout(spinTimer);
+    spinTimer = setTimeout(() => land(r), 5150);
+    ctx.sync(true);
+  }
+
+  function land(r) {
+    if (!wheel) return;
+    wheel.spinning = false;
+    wheel.r = r;
+    const id = wheel.opts[r];
+    const res = applyEffect(id, qf.picker);
+    wheel.msg = res.msg;
+    wheel.after = res.after || null;
+    wheel.respin = !!res.respin;
+    ctx.sound(EFFECTS[id].k === "g" ? "correct" : EFFECTS[id].k === "b" ? "wrong" : "open");
+    try { navigator.vibrate && navigator.vibrate(EFFECTS[id].k === "b" ? [120, 60, 120] : 60); } catch (_) {}
+    persist();
+    renderHud();
+    renderWheel();
+    renderQuestion();
+    ctx.sync(true);
+  }
+
+  function wheelDone() {
+    if (!wheel || wheel.spinning || wheel.r < 0 || wheel.respin) return;
+    const after = wheel.after;
+    $("#sjWheel").hidden = true;
+    if (after === "done") {
+      ctx.sound("correct");
+      afterTile(open, `🎁 ${wheel.msg}`);
+    } else if (after === "skip") {
+      afterTile(open, `⛔ ${wheel.msg}`);
+    } else {
+      renderQuestion();
+      ctx.sync(true);
+    }
   }
 
   /* ================= الفوز ================= */
@@ -333,28 +581,31 @@
   function buildView() {
     if (!state) return { g: "sj", sc: [0, 0], tn: 0 };
     const live = open >= 0;
+    const showQ = live && phase === "live";
     const c = live ? state.cells[open] : null;
     let msg;
     if (state.over) msg = "انتهت المباراة";
+    else if (live && phase === "prep") msg = wheel && wheel.spinning ? "🎡 العجلة تلف…" : `${nm(state.turn)} يقررون قبل السؤال`;
     else if (live) msg = revealed ? "الإجابة ظهرت" : `الدور على ${nm(state.turn)}`;
     else msg = `${nm(state.turn)} يختارون سؤال`;
     return {
       g: "sj",
       tn: state.turn,
       sc: state.score,
-      ph: live ? "live" : "idle",
-      qt: live ? c.q.slice(0, 200) : "",
+      ph: live ? phase : "idle",
+      qt: showQ ? c.q.slice(0, 200) : "",
       msg: msg.slice(0, 90),
-      tm: live && !revealed ? timerView() : null,
+      tm: showQ && !revealed ? timerView() : null,
       sj: {
         c: state.cats.map((id) => [BYID[id].icon, BYID[id].name]),
         u: state.used.map((u) => (u < 0 ? "." : u === 0 ? "a" : u === 1 ? "b" : "x")).join(""),
         cur: open,
-        pt: live ? pts(open) * (state.mult || 1) : 0,
-        lf: state.lf.map((l) => [l.dbl ? 1 : 0, l.swap ? 1 : 0, l.hint ? 1 : 0]),
-        hn: live && hintOpen && !revealed ? hintFor(c.a) : "",
-        an: live && revealed ? c.a.slice(0, 80) : "",
+        pt: live ? Math.round(pts(open) * (state.mult || 1)) : 0,
+        lf: state.lf.map((l) => [l.dbl ? 1 : 0, l.swap ? 1 : 0, l.hint ? 1 : 0, l.wheel ? 1 : 0]),
+        hn: showQ && hintOpen && !revealed ? hintFor(c.a) : "",
+        an: showQ && revealed ? c.a.slice(0, 80) : "",
         ls: state.last || "",
+        wh: live && wheel ? { o: wheel.opts.map((id) => [EFFECTS[id].icon, EFFECTS[id].name, EFFECTS[id].k]), r: wheel.spinning ? -1 : wheel.r, sp: wheel.spinning ? 1 : 0, m: wheel.msg || "" } : null,
       },
     };
   }
@@ -378,7 +629,8 @@
       used: new Array(NCELL).fill(-1),
       score: [0, 0],
       turn: 0,
-      lf: [{ dbl: true, swap: true, hint: true }, { dbl: true, swap: true, hint: true }],
+      lf: [{ dbl: true, swap: true, hint: true, wheel: true }, { dbl: true, swap: true, hint: true, wheel: true }],
+      wq: { g: [], o: [] },
       mult: 1,
       over: false,
       last: "",
@@ -405,7 +657,7 @@
     const s = load(KEY, null);
     state = valid(s) ? s : null;
     if (state) {
-      state.lf = state.lf.map((l) => ({ dbl: !!(l && l.dbl), swap: !!(l && l.swap), hint: l && l.hint !== undefined ? !!l.hint : true }));
+      state.lf = state.lf.map((l) => ({ dbl: !!(l && l.dbl), swap: !!(l && l.swap), hint: l && l.hint !== undefined ? !!l.hint : true, wheel: l && l.wheel !== undefined ? !!l.wheel : true }));
       state.mult = 1;
     }
     $("#sjBoard").addEventListener("click", (e) => {
@@ -424,6 +676,10 @@
     $("#sjOk1").onclick = () => finish(1);
     $("#sjNobody").onclick = () => finish(-1);
     $("#sjDbl").onclick = useDouble;
+    $("#sjShow").onclick = showQuestion;
+    $("#sjWheelBtn").onclick = wheelOpen;
+    $("#sjSpin").onclick = spin;
+    $("#sjWheelOk").onclick = wheelDone;
     $("#sjSwap").onclick = useSwap;
     $("#sjHint").onclick = useHint;
     $("#sjTimerText").onclick = timerToggle;
@@ -441,10 +697,13 @@
       if ($("#sjModal").hidden) return;
       const tag = e.target.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (!$("#sjWheel").hidden) return;
       if (e.key === "Escape") closeQuestion();
-      else if (e.key === " ") { e.preventDefault(); reveal(); }
+      else if (e.key === " ") { e.preventDefault(); if (phase === "prep") showQuestion(); else reveal(); }
     });
   }
 
+  // أدوات فحص (تشتغل بس لو الرابط فيه ?sjdebug=1)
+  if (/[?&]sjdebug=1/.test(location.search)) window.__sjt = { applyEffect: (id, t) => applyEffect(id, t), state: () => state, qf: () => qf, EFFECTS, drawOpts: () => drawOpts(), qSeconds: () => qSeconds(), hintFor };
   window.HaroofSJ = { init, start, show, hide, hasGame, hasProgress, end, refresh, buildView, categories: CATS };
 })();
